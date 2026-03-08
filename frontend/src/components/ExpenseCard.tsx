@@ -1,17 +1,19 @@
 import { Expense } from '../services/api';
 import Avatar from './Avatar';
-import { Receipt } from 'lucide-react';
+import { Receipt, Edit2, Trash2 } from 'lucide-react';
 
 interface ExpenseCardProps {
     expense: Expense;
+    onEdit?: (expense: Expense) => void;
+    onDelete?: (expense: Expense) => void;
 }
 
-export default function ExpenseCard({ expense }: ExpenseCardProps) {
+export default function ExpenseCard({ expense, onEdit, onDelete }: ExpenseCardProps) {
     const date = new Date(expense.created_at);
     const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     return (
-        <div className="bg-surface border border-border rounded-xl p-4 hover:bg-surface-hover transition-all duration-200">
+        <div className="group bg-surface border border-border rounded-xl p-4 hover:bg-surface-hover transition-all duration-200">
             <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
                     <Receipt className="w-5 h-5 text-accent" />
@@ -20,9 +22,32 @@ export default function ExpenseCard({ expense }: ExpenseCardProps) {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                         <h4 className="text-sm font-semibold text-primary truncate">{expense.title}</h4>
-                        <span className="text-base font-bold text-primary ml-3">
-                            ${expense.amount.toFixed(2)}
-                        </span>
+                        <div className="flex items-center gap-3">
+                            {/* Hover Actions */}
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mr-2">
+                                {onEdit && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onEdit(expense); }}
+                                        className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface transition-colors cursor-pointer"
+                                        title="Edit Expense"
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                                {onDelete && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDelete(expense); }}
+                                        className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+                                        title="Delete Expense"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                            <span className="text-base font-bold text-primary">
+                                ${expense.amount.toFixed(2)}
+                            </span>
+                        </div>
                     </div>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs text-secondary">

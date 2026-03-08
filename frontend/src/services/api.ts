@@ -96,6 +96,10 @@ export const groupsApi = {
         request<GroupMember>(`/groups/${groupId}/join`, {
             method: 'POST',
         }),
+    deleteGroup: (groupId: string) =>
+        request<void>(`/groups/${groupId}`, { method: 'DELETE' }),
+    removeMember: (groupId: string, userId: string) =>
+        request<void>(`/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
 };
 
 // --- Expenses ---
@@ -125,6 +129,15 @@ export const expensesApi = {
             body: JSON.stringify(data),
         }),
     list: (groupId: string) => request<Expense[]>(`/groups/${groupId}/expenses`),
+    update: (groupId: string, expenseId: string, data: { title: string; amount: number; paid_by: string; participant_ids: string[] }) =>
+        request<Expense>(`/groups/${groupId}/expenses/${expenseId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+    delete: (groupId: string, expenseId: string) =>
+        request<void>(`/groups/${groupId}/expenses/${expenseId}`, {
+            method: 'DELETE',
+        }),
 };
 
 // --- Balances & Settlements ---

@@ -131,3 +131,98 @@ async def list_expenses(
             participants=participant_outs,
         ))
     return out
+
+
+@router.put("/{expense_id}", response_model=ExpenseOut)
+async def update_expense(
+    group_id: str,
+    expense_id: str,
+    data: ExpenseCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    group = await _verify_membership(group_id, current_user.id, db)
+
+    # 1. Fetch the existing expense
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.id == expense_id, Expense.group_id == group_id)
+        .options(selectinload(Expense.participants))
+    )
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    member_ids = {m.user_id for m in group.members}
+    if data.paid_by not in member_ids:
+        raise HTTPException(status_code=400, detail="Payer is not a group member")
+
+    for pid in data.participant_ids:
+        if pid not in member_ids:
+            raise HTTPException(status_code=400, detail=f"Participant {pid} is not a group member")
+
+    # 2. Update basic fields
+    expense.title = data.title
+    expense.amount = data.amount
+    expense.paid_by = data.paid_by
+    expense.split_type = data.split_type
+
+    # 3. Wipe old participants and add new ones
+    for p in expense.participants:
+        await db.delete(p)
+    await db.flush()
+
+    share = round(data.amount / len(data.participant_ids), 2)
+    new_participants = []
+    for pid in data.participant_ids:
+        ep = ExpenseParticipant(expense_id=expense.id, user_id=pid, share_amount=share)
+        db.add(ep)
+        new_participants.append(ep)
+
+    await db.flush()
+    await db.refresh(expense)
+
+    # 4. Fetch updated names for output
+    payer_result = await db.execute(select(User).where(User.id == expense.paid_by))
+    payer = payer_result.scalar_one()
+
+    participant_outs = []
+    for ep in new_participants:
+        user_result = await db.execute(select(User).where(User.id == ep.user_id))
+        u = user_result.scalar_one()
+        participant_outs.append(ExpenseParticipantOut(
+            user_id=u.id, name=u.name, share_amount=ep.share_amount, avatar_color=u.avatar_color
+        ))
+
+    return ExpenseOut(
+        id=expense.id,
+        title=expense.title,
+        amount=expense.amount,
+        paid_by=expense.paid_by,
+        payer_name=payer.name,
+        payer_avatar_color=payer.avatar_color,
+        split_type=expense.split_type,
+        created_at=expense.created_at,
+        participants=participant_outs,
+    )
+
+
+@router.delete("/{expense_id}", status_code=204)
+async def delete_expense(
+    group_id: str,
+    expense_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _verify_membership(group_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Expense).where(Expense.id == expense_id, Expense.group_id == group_id)
+    )
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    await db.delete(expense)
+    await db.flush()
+    return None

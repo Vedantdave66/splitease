@@ -8,7 +8,10 @@ import {
     Handshake,
     BarChart3,
     Link as LinkIcon,
-    CheckCircle2
+    CheckCircle2,
+    Trash2,
+    Settings,
+    X as XIcon
 } from 'lucide-react';
 import {
     groupsApi,
@@ -44,6 +47,9 @@ export default function GroupPage() {
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    // Edit expense state
+    const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
+
     useEffect(() => {
         if (groupId) loadAll();
     }, [groupId]);
@@ -69,9 +75,49 @@ export default function GroupPage() {
         }
     };
 
-    const handleExpenseCreated = () => {
+    const handleExpenseCreatedOrUpdated = () => {
         setShowAddExpense(false);
+        setExpenseToEdit(undefined);
         loadAll();
+    };
+
+    const handleEditExpense = (expense: Expense) => {
+        setExpenseToEdit(expense);
+        setShowAddExpense(true);
+    };
+
+    const handleDeleteExpense = async (expense: Expense) => {
+        if (!groupId || !window.confirm('Are you sure you want to delete this expense?')) return;
+        try {
+            await expensesApi.delete(groupId, expense.id);
+            await loadAll();
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete expense');
+        }
+    };
+
+    const handleDeleteGroup = async () => {
+        if (!groupId || !group) return;
+        if (!window.confirm(`Are you sure you want to delete "${group.name}"? This action cannot be undone and will delete all expenses.`)) return;
+
+        try {
+            await groupsApi.deleteGroup(groupId);
+            navigate('/dashboard');
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete group. You may not have permission.');
+        }
+    };
+
+    const handleRemoveMember = async (userId: string, userName: string) => {
+        if (!groupId) return;
+        if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
+
+        try {
+            await groupsApi.removeMember(groupId, userId);
+            await loadAll();
+        } catch (err: any) {
+            alert(err.message || 'Failed to remove member. You may not have permission, or they may be involved in active expenses.');
+        }
     };
 
     const handleInvite = async (e: React.FormEvent) => {
@@ -138,7 +184,16 @@ export default function GroupPage() {
             <div className="bg-surface border border-border rounded-2xl p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-5">
                     <div>
-                        <h1 className="text-2xl font-bold text-primary mb-1">{group.name}</h1>
+                        <div className="flex items-center gap-3 mb-1">
+                            <h1 className="text-2xl font-bold text-primary">{group.name}</h1>
+                            <button
+                                onClick={handleDeleteGroup}
+                                className="p-1.5 rounded-lg text-secondary hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+                                title="Delete Group"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
                         <p className="text-sm text-secondary">
                             {group.members.length} member{group.members.length !== 1 ? 's' : ''} · ${totalSpent.toFixed(2)} total
                         </p>
@@ -147,8 +202,8 @@ export default function GroupPage() {
                         <button
                             onClick={handleCopyLink}
                             className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer ${copied
-                                    ? 'bg-accent/20 text-accent border border-accent/20'
-                                    : 'bg-surface-light border border-border hover:bg-border text-primary'
+                                ? 'bg-accent/20 text-accent border border-accent/20'
+                                : 'bg-surface-light border border-border hover:bg-border text-primary'
                                 }`}
                         >
                             {copied ? <CheckCircle2 className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
@@ -162,7 +217,10 @@ export default function GroupPage() {
                             Invite
                         </button>
                         <button
-                            onClick={() => setShowAddExpense(true)}
+                            onClick={() => {
+                                setExpenseToEdit(undefined);
+                                setShowAddExpense(true);
+                            }}
                             className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
                         >
                             <Plus className="w-4 h-4" />
@@ -173,14 +231,21 @@ export default function GroupPage() {
 
                 {/* Members */}
                 <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
+                    <div className="flex flex-wrap gap-2">
                         {group.members.map((m) => (
-                            <Avatar key={m.user_id} name={m.name} color={m.avatar_color} size="sm" />
+                            <div key={m.user_id} className="flex items-center gap-1.5 bg-bg border border-border/50 rounded-full pl-1 pr-2 py-1">
+                                <Avatar name={m.name} color={m.avatar_color} size="sm" />
+                                <span className="text-xs font-medium text-secondary">{m.name.split(' ')[0]}</span>
+                                <button
+                                    onClick={() => handleRemoveMember(m.user_id, m.name)}
+                                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-danger/10 text-secondary hover:text-danger transition-colors cursor-pointer ml-1"
+                                    title={`Remove ${m.name}`}
+                                >
+                                    <XIcon className="w-3 h-3" />
+                                </button>
+                            </div>
                         ))}
                     </div>
-                    <span className="text-xs text-secondary ml-2">
-                        {group.members.map((m) => m.name.split(' ')[0]).join(', ')}
-                    </span>
                 </div>
 
                 {/* Invite form */}
@@ -246,7 +311,12 @@ export default function GroupPage() {
                     ) : (
                         <div className="space-y-3">
                             {expenses.map((exp) => (
-                                <ExpenseCard key={exp.id} expense={exp} />
+                                <ExpenseCard
+                                    key={exp.id}
+                                    expense={exp}
+                                    onEdit={handleEditExpense}
+                                    onDelete={handleDeleteExpense}
+                                />
                             ))}
                         </div>
                     )}
@@ -301,8 +371,13 @@ export default function GroupPage() {
                 <AddExpenseModal
                     groupId={group.id}
                     members={group.members}
-                    onClose={() => setShowAddExpense(false)}
-                    onCreated={handleExpenseCreated}
+                    expense={expenseToEdit}
+                    onClose={() => {
+                        setShowAddExpense(false);
+                        setExpenseToEdit(undefined);
+                    }}
+                    onCreated={handleExpenseCreatedOrUpdated}
+                    onUpdated={handleExpenseCreatedOrUpdated}
                 />
             )}
         </div>

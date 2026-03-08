@@ -5,16 +5,29 @@ import { GroupMember, expensesApi, Expense } from '../services/api';
 interface AddExpenseModalProps {
     groupId: string;
     members: GroupMember[];
+    expense?: Expense; // If provided, we are editing
     onClose: () => void;
-    onCreated: (expense: Expense) => void;
+    onCreated?: (expense: Expense) => void;
+    onUpdated?: (expense: Expense) => void;
 }
 
-export default function AddExpenseModal({ groupId, members, onClose, onCreated }: AddExpenseModalProps) {
-    const [title, setTitle] = useState('');
-    const [amount, setAmount] = useState('');
-    const [paidBy, setPaidBy] = useState(members[0]?.user_id || '');
+export default function AddExpenseModal({
+    groupId,
+    members,
+    expense,
+    onClose,
+    onCreated,
+    onUpdated
+}: AddExpenseModalProps) {
+    const isEditMode = !!expense;
+
+    const [title, setTitle] = useState(expense?.title || '');
+    const [amount, setAmount] = useState(expense ? expense.amount.toString() : '');
+    const [paidBy, setPaidBy] = useState(expense?.paid_by || members[0]?.user_id || '');
     const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
-        members.map((m) => m.user_id)
+        expense
+            ? expense.participants.map(p => p.user_id)
+            : members.map((m) => m.user_id)
     );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -36,15 +49,25 @@ export default function AddExpenseModal({ groupId, members, onClose, onCreated }
         setError('');
 
         try {
-            const expense = await expensesApi.create(groupId, {
-                title,
-                amount: parseFloat(amount),
-                paid_by: paidBy,
-                participant_ids: selectedParticipants,
-            });
-            onCreated(expense);
+            if (isEditMode && expense && onUpdated) {
+                const updatedExpense = await expensesApi.update(groupId, expense.id, {
+                    title,
+                    amount: parseFloat(amount),
+                    paid_by: paidBy,
+                    participant_ids: selectedParticipants,
+                });
+                onUpdated(updatedExpense);
+            } else if (onCreated) {
+                const newExpense = await expensesApi.create(groupId, {
+                    title,
+                    amount: parseFloat(amount),
+                    paid_by: paidBy,
+                    participant_ids: selectedParticipants,
+                });
+                onCreated(newExpense);
+            }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Failed to save expense');
         } finally {
             setLoading(false);
         }
@@ -63,7 +86,7 @@ export default function AddExpenseModal({ groupId, members, onClose, onCreated }
             <div className="relative bg-surface border border-border rounded-2xl w-full max-w-md mx-4 shadow-2xl animate-in">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
-                    <h2 className="text-lg font-bold text-primary">Add Expense</h2>
+                    <h2 className="text-lg font-bold text-primary">{isEditMode ? 'Edit Expense' : 'Add Expense'}</h2>
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-lg bg-surface-light flex items-center justify-center hover:bg-border transition-colors cursor-pointer"
@@ -129,8 +152,8 @@ export default function AddExpenseModal({ groupId, members, onClose, onCreated }
                                 <label
                                     key={m.user_id}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 ${selectedParticipants.includes(m.user_id)
-                                            ? 'bg-accent/5 border-accent/30'
-                                            : 'bg-bg border-border hover:border-border'
+                                        ? 'bg-accent/5 border-accent/30'
+                                        : 'bg-bg border-border hover:border-border'
                                         }`}
                                 >
                                     <input
@@ -141,8 +164,8 @@ export default function AddExpenseModal({ groupId, members, onClose, onCreated }
                                     />
                                     <div
                                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${selectedParticipants.includes(m.user_id)
-                                                ? 'bg-accent border-accent'
-                                                : 'border-border'
+                                            ? 'bg-accent border-accent'
+                                            : 'border-border'
                                             }`}
                                     >
                                         {selectedParticipants.includes(m.user_id) && (
@@ -171,7 +194,7 @@ export default function AddExpenseModal({ groupId, members, onClose, onCreated }
                         disabled={loading}
                         className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-xl transition-all duration-200 disabled:opacity-50 cursor-pointer"
                     >
-                        {loading ? 'Adding...' : 'Add Expense'}
+                        {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Expense'}
                     </button>
                 </form>
             </div>

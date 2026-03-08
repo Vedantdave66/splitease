@@ -166,3 +166,60 @@ async def join_group(group_id: str, current_user: User = Depends(get_current_use
         email=current_user.email,
         avatar_color=current_user.avatar_color,
     )
+
+
+@router.delete("/{group_id}", status_code=204)
+async def delete_group(group_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    if group.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can delete the group")
+
+    await db.delete(group)
+    await db.flush()
+    return None
+
+
+@router.delete("/{group_id}/members/{user_id}", status_code=204)
+async def remove_member(group_id: str, user_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Verify group exists
+    result = await db.execute(
+        select(Group).where(Group.id == group_id).options(selectinload(Group.members))
+    )
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Only a member can remove someone, and you can only remove yourself OR the creator can remove anyone
+    is_member = any(m.user_id == current_user.id for m in group.members)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="Not a member of this group")
+        
+    if current_user.id != user_id and current_user.id != group.created_by:
+        raise HTTPException(status_code=403, detail="Only the group creator can remove other members")
+
+    # Find the member record
+    result = await db.execute(
+        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+    )
+    member_record = result.scalar_one_or_none()
+    
+    if not member_record:
+        raise HTTPException(status_code=404, detail="Member not found in this group")
+        
+    # Prevent removing the creator
+    if user_id == group.created_by:
+        raise HTTPException(status_code=400, detail="Cannot remove the group creator")
+
+    # Prevent removing if they mapped to an active expense
+    # For a fully robust app we'd do a check here. For now, since user wants the ability to remove,
+    # we'll just delete the membership. Expenses they were part of will still have them as participants 
+    # (unless we explicitly cascade, but we aren't cascading member deletion to expenses by default).
+
+    await db.delete(member_record)
+    await db.flush()
+    return None
