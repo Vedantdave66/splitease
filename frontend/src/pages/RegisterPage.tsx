@@ -6,6 +6,7 @@ import { Wallet, Eye, EyeOff } from 'lucide-react';
 export default function RegisterPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [interacEmail, setInteracEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -35,7 +36,7 @@ export default function RegisterPage() {
         }, 5000);
 
         try {
-            await register(name, email, password);
+            await register(name, email, password, interacEmail || undefined);
             clearTimeout(warningTimer);
             const returnTo = searchParams.get('returnTo');
             navigate(returnTo || '/dashboard');
@@ -101,6 +102,17 @@ export default function RegisterPage() {
                                 required
                                 className="w-full bg-bg border border-border rounded-xl px-4 py-3 text-sm text-primary placeholder-secondary/50 focus:outline-none focus:border-accent transition-colors"
                             />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-secondary mb-2">Interac e-Transfer Email <span className="text-secondary/50 font-normal">(Optional)</span></label>
+                            <input
+                                type="email"
+                                value={interacEmail}
+                                onChange={(e) => setInteracEmail(e.target.value)}
+                                placeholder="For friends to pay you back"
+                                className="w-full bg-bg border border-border rounded-xl px-4 py-3 text-sm text-primary placeholder-secondary/50 focus:outline-none focus:border-accent transition-colors"
+                            />
+                            <p className="text-[11px] text-secondary/60 mt-1.5 ml-1">If provided, this is the email friends will see when settling debts via E-Transfer.</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-secondary mb-2">Password</label>

@@ -7,6 +7,7 @@ import GroupPage from './pages/GroupPage';
 import InvitePage from './pages/InvitePage';
 import PaymentsPage from './pages/PaymentsPage';
 import FriendsPage from './pages/FriendsPage';
+import LandingPage from './pages/LandingPage';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ export default function App() {
         <BrowserRouter>
             <AuthProvider>
                 <Routes>
+                    <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
                     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
                     <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
                     <Route path="/dashboard" element={<ProtectedRoute><Layout><DashboardPage /></Layout></ProtectedRoute>} />

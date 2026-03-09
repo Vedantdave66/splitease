@@ -67,6 +67,7 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
         email=data.email,
         hashed_password=hash_password(data.password),
         avatar_color=random.choice(AVATAR_COLORS),
+        interac_email=data.interac_email,
     )
     db.add(user)
     await db.flush()

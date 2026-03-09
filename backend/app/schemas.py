@@ -7,6 +7,7 @@ class UserRegister(BaseModel):
     name: str
     email: EmailStr
     password: str
+    interac_email: EmailStr | None = None
 
 
 class UserLogin(BaseModel):
@@ -24,6 +25,7 @@ class UserOut(BaseModel):
     name: str
     email: str
     avatar_color: str
+    interac_email: str | None = None
     created_at: datetime
 
     class Config:

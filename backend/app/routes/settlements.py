@@ -25,16 +25,19 @@ async def _verify_membership(group_id: str, user_id: str, db: AsyncSession) -> G
 
 
 def _build_settlement_out(record: SettlementRecord, payer: User, payee: User) -> SettlementRecordOut:
+    payer_email_to_use = payer.interac_email if payer.interac_email else payer.email
+    payee_email_to_use = payee.interac_email if payee.interac_email else payee.email
+
     return SettlementRecordOut(
         id=record.id,
         group_id=record.group_id,
         payer_id=payer.id,
         payer_name=payer.name,
-        payer_email=payer.email,
+        payer_email=payer_email_to_use,
         payer_avatar_color=payer.avatar_color,
         payee_id=payee.id,
         payee_name=payee.name,
-        payee_email=payee.email,
+        payee_email=payee_email_to_use,
         payee_avatar_color=payee.avatar_color,
         amount=record.amount,
         method=record.method,

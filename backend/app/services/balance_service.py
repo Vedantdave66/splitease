@@ -89,7 +89,9 @@ async def get_settlements(
     user_info = {}
     for member in group.members:
         user = member.user
-        user_info[user.id] = {"name": user.name, "email": user.email, "avatar_color": user.avatar_color}
+        # Prioritize interac_email if they have one, otherwise fallback to their login email
+        email_to_use = user.interac_email if user.interac_email else user.email
+        user_info[user.id] = {"name": user.name, "email": email_to_use, "avatar_color": user.avatar_color}
 
     # Compute net balances
     net: dict[str, float] = {}

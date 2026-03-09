@@ -47,10 +47,10 @@ export interface Token {
 }
 
 export const authApi = {
-    register: (name: string, email: string, password: string) =>
+    register: (name: string, email: string, password: string, interac_email?: string) =>
         request<Token>('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ name, email, password }),
+            body: JSON.stringify({ name, email, password, interac_email }),
         }),
     login: (email: string, password: string) =>
         request<Token>('/auth/login', {
