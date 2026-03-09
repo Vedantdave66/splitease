@@ -262,12 +262,78 @@ export const friendRequestsApi = {
     decline: (id: string) => request<{ status: string }>(`/friends/requests/${id}/decline`, { method: 'PUT' }),
 };
 
-// --- Wallet ---
+// --- Fintech Overhaul: Providers, Ledger, and Payment Requests ---
+
+export interface ProviderAccount {
+    id: string;
+    user_id: string;
+    provider: string;
+    account_mask: string;
+    institution_name: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export const bankLinksApi = {
+    link: (institution_name: string, account_mask: string, provider: string = 'plaid') =>
+        request<ProviderAccount>('/bank-links', {
+            method: 'POST',
+            body: JSON.stringify({ institution_name, account_mask, provider })
+        }),
+    list: () => request<ProviderAccount[]>('/bank-links'),
+    remove: (id: string) => request<void>(`/bank-links/${id}`, { method: 'DELETE' }),
+};
+
+export interface WalletTransaction {
+    id: string;
+    user_id: string;
+    tx_type: string;
+    amount: number;
+    status: string;
+    related_request_id: string | null;
+    created_at: string;
+}
+
 export const walletApi = {
-    addFunds: (amount: number, source: string) =>
+    addFunds: (amount: number, source_account_id?: string) =>
         request<User>('/wallet/add-funds', {
             method: 'POST',
-            body: JSON.stringify({ amount, source })
+            body: JSON.stringify({ amount, source_account_id })
+        }),
+    withdraw: (data: { destination_account: string }) =>
+        request<User>('/wallet/withdraw', {
+            method: 'POST',
+            body: JSON.stringify(data)
         }),
     getBalance: () => request<User>('/wallet/balance'),
+    getTransactions: () => request<WalletTransaction[]>('/wallet/transactions'),
+};
+
+export interface PaymentRequestData {
+    id: string;
+    group_id: string;
+    requester_id: string;
+    payer_id: string;
+    amount: number;
+    note: string | null;
+    due_date: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+
+    requester_name: string | null;
+    requester_avatar: string | null;
+    payer_name: string | null;
+    payer_avatar: string | null;
+}
+
+export const requestsApi = {
+    create: (groupId: string, data: { payer_id: string; amount: number; note?: string; due_date?: string }) =>
+        request<PaymentRequestData>(`/groups/${groupId}/requests`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+    list: (groupId: string) => request<PaymentRequestData[]>(`/groups/${groupId}/requests`),
+    payWithWallet: (requestId: string) => request<PaymentRequestData>(`/requests/${requestId}/pay`, { method: 'PUT' }),
 };

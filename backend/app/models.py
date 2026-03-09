@@ -125,3 +125,58 @@ class FriendRequest(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     sender: Mapped["User"] = relationship()
+
+
+# --- Fintech Platform Overhaul: Providers, Ledger, and Payment Requests ---
+
+class ProviderAccount(Base):
+    """Represents a linked bank account via an external provider (e.g., Plaid)."""
+    __tablename__ = "provider_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(50), default="plaid")
+    account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    account_mask: Mapped[str] = mapped_column(String(4), nullable=False)
+    institution_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="linked")  # linked | relink_required | verification_required | removed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user: Mapped["User"] = relationship()
+
+
+class WalletTransaction(Base):
+    """The internal ledger representing all money movement in and out of user wallets."""
+    __tablename__ = "wallet_transactions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # deposit | withdrawal | transfer_in | transfer_out
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | processing | completed | failed | cancelled | reversed
+    reference_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # link to a payment_request, provider_account, etc.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship()
+
+
+class PaymentRequest(Base):
+    """Tracks direct peer-to-peer money requests within groups."""
+    __tablename__ = "payment_requests"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    group_id: Mapped[str] = mapped_column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+    requester_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    payer_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | awaiting_payment | processing | settled | failed | cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    group: Mapped["Group"] = relationship()
+    requester: Mapped["User"] = relationship(foreign_keys=[requester_id])
+    payer: Mapped["User"] = relationship(foreign_keys=[payer_id])

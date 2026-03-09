@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet
+from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet, bank_links, requests
 from app.services import balance_service
 
 
@@ -54,6 +54,8 @@ app.include_router(settlements.router)
 app.include_router(notifications.router)
 app.include_router(friends.router)
 app.include_router(wallet.router)
+app.include_router(bank_links.router)
+app.include_router(requests.router)
 
 
 @app.get("/")

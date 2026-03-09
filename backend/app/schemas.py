@@ -199,3 +199,62 @@ class FriendRequestOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Fintech Platform Overhaul: Providers & Ledger ---
+
+class ProviderAccountOut(BaseModel):
+    id: str
+    user_id: str
+    provider: str
+    account_mask: str
+    institution_name: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WalletTransactionOut(BaseModel):
+    id: str
+    user_id: str
+    type: str
+    amount: float
+    status: str
+    reference_id: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentRequestCreate(BaseModel):
+    payer_id: str
+    amount: float
+    note: str | None = None
+    due_date: datetime | None = None
+
+
+class PaymentRequestOut(BaseModel):
+    id: str
+    group_id: str
+    requester_id: str
+    payer_id: str
+    amount: float
+    note: str | None = None
+    due_date: datetime | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    
+    # Nested display data
+    requester_name: str | None = None
+    requester_avatar: str | None = None
+    payer_name: str | None = None
+    payer_avatar: str | None = None
+
+    class Config:
+        from_attributes = True

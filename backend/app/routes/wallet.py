@@ -4,9 +4,10 @@ from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import User, Notification
+from app.models import User, Notification, WalletTransaction
 from app.routes.auth import get_current_user
-from app.schemas import UserOut
+from app.schemas import UserOut, WalletTransactionOut
+import datetime
 
 router = APIRouter(prefix="/api/wallet", tags=["wallet"])
 
@@ -30,12 +31,72 @@ async def add_funds(
     # Increment balance
     current_user.wallet_balance += request.amount
     
-    # Generate notification
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    # 2. Add ledger transaction
+    tx = WalletTransaction(
+        user_id=current_user.id,
+        type="deposit",
+        amount=request.amount,
+        status="completed",
+        reference_id=request.source,
+        completed_at=now
+    )
+    db.add(tx)
+    
+    # 3. Generate notification
     notif = Notification(
         user_id=current_user.id,
-        type="payment_confirmed",  # Reusing this type for the green check icon
+        type="deposit_completed",
         title="Funds Added",
         message=f"Successfully added ${request.amount:.2f} from {request.source}."
+    )
+    db.add(notif)
+    
+    await db.commit()
+    await db.refresh(current_user)
+    
+    return current_user
+
+class WithdrawFundsRequest(BaseModel):
+    amount: float
+    destination: str = "Bank Account"
+
+@router.post("/withdraw", response_model=UserOut)
+async def withdraw_funds(
+    request: WithdrawFundsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Simulate withdrawing funds from Wallet to Bank."""
+    if request.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+        
+    if current_user.wallet_balance < request.amount:
+        raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+
+    # 1. Decrement balance
+    current_user.wallet_balance -= request.amount
+    
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    # 2. Add ledger transaction
+    tx = WalletTransaction(
+        user_id=current_user.id,
+        type="withdrawal",
+        amount=-request.amount,
+        status="completed",
+        reference_id=request.destination,
+        completed_at=now
+    )
+    db.add(tx)
+    
+    # 3. Generate notification
+    notif = Notification(
+        user_id=current_user.id,
+        type="withdrawal_completed",
+        title="Withdrawal Complete",
+        message=f"Successfully withdrew ${request.amount:.2f} to {request.destination}."
     )
     db.add(notif)
     
@@ -51,3 +112,18 @@ async def get_balance(
 ):
     """Return the current user's wallet profile."""
     return current_user
+
+
+@router.get("/transactions", response_model=list[WalletTransactionOut])
+async def get_transactions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Return the ledger feed for this user."""
+    result = await db.execute(
+        select(WalletTransaction)
+        .filter(WalletTransaction.user_id == current_user.id)
+        .order_by(WalletTransaction.created_at.desc())
+    )
+    transactions = result.scalars().all()
+    return transactions

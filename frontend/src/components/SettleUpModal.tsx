@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { X, Send, Building2, CreditCard, Copy, CheckCircle2, ArrowRight, Loader2, Shield, Landmark } from 'lucide-react';
-import { Settlement, settlementRecordsApi } from '../services/api';
+import { useEffect, useState } from 'react';
+import { X, Send, Building2, CreditCard, Copy, CheckCircle2, ArrowRight, Loader2, Shield, Landmark, Wallet } from 'lucide-react';
+import { Settlement, settlementRecordsApi, walletApi, requestsApi } from '../services/api';
 import Avatar from './Avatar';
 
 interface SettleUpModalProps {
@@ -18,11 +18,18 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState('');
+    const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
     const isPayer = settlement.from_user_id === currentUserId;
     const recipientName = isPayer ? settlement.to_user_name : settlement.from_user_name;
     const recipientEmail = isPayer ? settlement.to_user_email : settlement.from_user_email;
     const recipientColor = isPayer ? settlement.to_avatar_color : settlement.from_avatar_color;
+
+    useEffect(() => {
+        if (isPayer) {
+            walletApi.getBalance().then(u => setWalletBalance(u.wallet_balance)).catch(console.error);
+        }
+    }, [isPayer]);
 
     const handleCopyEmail = () => {
         navigator.clipboard.writeText(recipientEmail);
@@ -139,15 +146,28 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                             <div className="space-y-3">
                                 <button
                                     onClick={() => handleInitiateSettlement('in_app')}
-                                    disabled={loading}
+                                    disabled={loading || walletBalance === null || walletBalance < settlement.amount}
                                     className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/20 hover:border-accent/40 transition-all duration-300 cursor-pointer group disabled:opacity-50"
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center group-hover:bg-accent/30 transition-colors">
-                                        <CreditCard className="w-6 h-6 text-accent" />
+                                        <Wallet className="w-6 h-6 text-accent" />
                                     </div>
                                     <div className="text-left flex-1">
-                                        <p className="text-sm font-bold text-white">Pay in App</p>
-                                        <p className="text-xs text-white/40">Instant • Secure • Direct</p>
+                                        <p className="text-sm font-bold text-white mb-0.5">Pay with Wallet</p>
+                                        <div className="flex items-center gap-2">
+                                            {walletBalance !== null ? (
+                                                <>
+                                                    <span className={`text-xs font-bold ${walletBalance >= settlement.amount ? 'text-accent' : 'text-danger'}`}>
+                                                        ${walletBalance.toFixed(2)} Available
+                                                    </span>
+                                                    {walletBalance < settlement.amount && (
+                                                        <span className="text-[10px] text-white/40 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded-sm">Add Funds</span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-white/40">Loading balance...</span>
+                                            )}
+                                        </div>
                                     </div>
                                     <ArrowRight className="w-4 h-4 text-accent/40 group-hover:text-accent transition-colors" />
                                 </button>
@@ -285,16 +305,20 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
 
                                 <div className="border-t border-white/5 pt-4 space-y-2">
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-white/40">From</span>
-                                        <span className="text-white/70">Chequing ••••4829</span>
+                                        <span className="text-white/40">Funding Source</span>
+                                        <span className="text-white/70">SplitEase Wallet</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
+                                        <span className="text-white/40">Available Balance</span>
+                                        <span className="text-white/70">${walletBalance?.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs mt-2 pt-2 border-t border-white/5">
                                         <span className="text-white/40">Fee</span>
                                         <span className="text-accent font-medium">Free</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
                                         <span className="text-white/40">Arrives</span>
-                                        <span className="text-white/70">Instantly</span>
+                                        <span className="text-white/70">Instantly via Ledger</span>
                                     </div>
                                 </div>
                             </div>

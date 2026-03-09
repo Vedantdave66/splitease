@@ -25,6 +25,8 @@ import {
     UserBalance,
     Settlement,
     SettlementRecord,
+    requestsApi,
+    PaymentRequestData
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ExpenseCard from '../components/ExpenseCard';
@@ -34,6 +36,7 @@ import SettleUpModal from '../components/SettleUpModal';
 import PaymentRecordCard from '../components/PaymentRecordCard';
 import PaymentStatusBadge from '../components/PaymentStatusBadge';
 import Avatar from '../components/Avatar';
+import RequestMoneyModal from '../components/RequestMoneyModal';
 
 type Tab = 'expenses' | 'balances' | 'settlements' | 'payments';
 
@@ -47,6 +50,7 @@ export default function GroupPage() {
     const [balances, setBalances] = useState<UserBalance[]>([]);
     const [settlements, setSettlements] = useState<Settlement[]>([]);
     const [paymentRecords, setPaymentRecords] = useState<SettlementRecord[]>([]);
+    const [paymentRequests, setPaymentRequests] = useState<PaymentRequestData[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('expenses');
     const [showAddExpense, setShowAddExpense] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
@@ -61,6 +65,7 @@ export default function GroupPage() {
 
     // Settle Up modal state
     const [settleUpTarget, setSettleUpTarget] = useState<Settlement | null>(null);
+    const [showRequestMoney, setShowRequestMoney] = useState(false);
 
     useEffect(() => {
         if (groupId) loadAll();
@@ -70,18 +75,20 @@ export default function GroupPage() {
         if (!groupId) return;
         setLoading(true);
         try {
-            const [g, e, b, s, pr] = await Promise.all([
+            const [g, e, b, s, pr, reqs] = await Promise.all([
                 groupsApi.get(groupId),
                 expensesApi.list(groupId),
                 balancesApi.getBalances(groupId),
                 balancesApi.getSettlements(groupId),
                 settlementRecordsApi.list(groupId),
+                requestsApi.list(groupId)
             ]);
             setGroup(g);
             setExpenses(e);
             setBalances(b);
             setSettlements(s);
             setPaymentRecords(pr);
+            setPaymentRequests(reqs.filter(r => r.status === 'pending'));
         } catch (err) {
             console.error(err);
         } finally {
@@ -247,7 +254,14 @@ export default function GroupPage() {
                             className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
                         >
                             <Plus className="w-4 h-4" />
-                            Add Expense
+                            Expense
+                        </button>
+                        <button
+                            onClick={() => setShowRequestMoney(true)}
+                            className="flex items-center gap-2 bg-indigo hover:bg-indigo-hover text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+                        >
+                            <Handshake className="w-4 h-4" />
+                            Request
                         </button>
                     </div>
                 </div>
@@ -401,57 +415,96 @@ export default function GroupPage() {
             )}
 
             {activeTab === 'settlements' && (
-                <div>
-                    {settlements.length === 0 ? (
-                        <div className="bg-surface border border-border rounded-2xl p-12 text-center">
-                            <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                                <Handshake className="w-7 h-7 text-accent" />
-                            </div>
-                            <h3 className="text-lg font-semibold text-primary mb-2">All settled up! 🎉</h3>
-                            <p className="text-sm text-secondary">No payments needed — everyone's even.</p>
-                        </div>
-                    ) : (
+                <div className="space-y-6">
+                    {/* Active Peer-to-Peer Requests */}
+                    {paymentRequests.length > 0 && (
                         <div>
-                            <div className="bg-surface-light border border-border rounded-xl p-4 mb-4">
-                                <p className="text-sm text-secondary">
-                                    <span className="text-accent font-bold">{settlements.length}</span> payment{settlements.length !== 1 ? 's' : ''} needed to settle all debts
-                                </p>
-                            </div>
+                            <h3 className="text-lg font-bold text-primary mb-3">Direct Requests</h3>
                             <div className="space-y-3">
-                                {settlements.map((s, i) => {
-                                    const canSettle = s.from_user_id === user?.id;
+                                {paymentRequests.map((req) => {
+                                    const isPayer = req.payer_id === user?.id;
                                     return (
-                                        <div key={i} className="bg-[#0C0E14] border border-white/[0.06] rounded-2xl p-5 hover:border-white/10 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <Avatar name={s.from_user_name} color={s.from_avatar_color} size="md" />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        <span className="font-semibold text-white truncate">{s.from_user_name}</span>
-                                                        <ArrowRight className="w-4 h-4 text-accent shrink-0" />
-                                                        <span className="font-semibold text-white truncate">{s.to_user_name}</span>
-                                                    </div>
-                                                    <p className="text-xs text-white/40 mt-0.5">
-                                                        owes <span className="text-accent font-bold">${s.amount.toFixed(2)}</span>
+                                        <div key={req.id} className="bg-surface-light border border-indigo/20 rounded-2xl p-5 flex items-center justify-between shadow-lg shadow-indigo/5">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar name={req.requester_name || 'User'} color={req.requester_avatar || '#fff'} size="md" />
+                                                <div>
+                                                    <p className="text-sm font-medium text-white">
+                                                        <span className="font-bold">{req.requester_name}</span> requested <span className="text-indigo font-bold">${req.amount.toFixed(2)}</span>
                                                     </p>
+                                                    {req.note && <p className="text-xs text-secondary mt-0.5">"{req.note}"</p>}
                                                 </div>
-                                                <Avatar name={s.to_user_name} color={s.to_avatar_color} size="md" />
                                             </div>
-
-                                            {canSettle && (
+                                            {isPayer ? (
                                                 <button
-                                                    onClick={() => setSettleUpTarget(s)}
-                                                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
+                                                    onClick={() => navigate('/payments')} // They will pay it from the Payments/Wallet page logic we will build next
+                                                    className="px-4 py-2 bg-indigo hover:bg-indigo-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
                                                 >
-                                                    <Handshake className="w-4 h-4" />
-                                                    Settle Up ${s.amount.toFixed(2)}
+                                                    Pay Now
                                                 </button>
+                                            ) : (
+                                                <span className="text-xs font-bold text-secondary uppercase bg-bg px-2 py-1 rounded-md border border-border">Pending</span>
                                             )}
                                         </div>
-                                    );
+                                    )
                                 })}
                             </div>
                         </div>
                     )}
+
+                    {/* Calculated Group Debt Settlements */}
+                    <div>
+                        <h3 className="text-lg font-bold text-primary mb-3">Suggested Settlements</h3>
+                        {settlements.length === 0 ? (
+                            <div className="bg-surface border border-border rounded-2xl p-12 text-center">
+                                <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                                    <Handshake className="w-7 h-7 text-accent" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-primary mb-2">All settled up! 🎉</h3>
+                                <p className="text-sm text-secondary">No payments needed — everyone's even.</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="bg-surface-light border border-border rounded-xl p-4 mb-4">
+                                    <p className="text-sm text-secondary">
+                                        <span className="text-accent font-bold">{settlements.length}</span> payment{settlements.length !== 1 ? 's' : ''} needed to settle all debts
+                                    </p>
+                                </div>
+                                <div className="space-y-3">
+                                    {settlements.map((s, i) => {
+                                        const canSettle = s.from_user_id === user?.id;
+                                        return (
+                                            <div key={i} className="bg-[#0C0E14] border border-white/[0.06] rounded-2xl p-5 hover:border-white/10 transition-all duration-300">
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <Avatar name={s.from_user_name} color={s.from_avatar_color} size="md" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <span className="font-semibold text-white truncate">{s.from_user_name}</span>
+                                                            <ArrowRight className="w-4 h-4 text-accent shrink-0" />
+                                                            <span className="font-semibold text-white truncate">{s.to_user_name}</span>
+                                                        </div>
+                                                        <p className="text-xs text-white/40 mt-0.5">
+                                                            owes <span className="text-accent font-bold">${s.amount.toFixed(2)}</span>
+                                                        </p>
+                                                    </div>
+                                                    <Avatar name={s.to_user_name} color={s.to_avatar_color} size="md" />
+                                                </div>
+
+                                                {canSettle && (
+                                                    <button
+                                                        onClick={() => setSettleUpTarget(s)}
+                                                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
+                                                    >
+                                                        <Handshake className="w-4 h-4" />
+                                                        Settle Up ${s.amount.toFixed(2)}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -519,6 +572,16 @@ export default function GroupPage() {
                     currentUserId={user.id}
                     onClose={() => setSettleUpTarget(null)}
                     onSettled={loadAll}
+                />
+            )}
+
+            {showRequestMoney && groupId && user && group && (
+                <RequestMoneyModal
+                    groupId={groupId}
+                    members={group.members}
+                    currentUserId={user.id}
+                    onClose={() => setShowRequestMoney(false)}
+                    onSuccess={loadAll}
                 />
             )}
         </div>

@@ -1,29 +1,64 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, History, Wallet, CheckCircle2, AlertCircle } from 'lucide-react';
-import { meApi, SettlementRecord, settlementRecordsApi } from '../services/api';
+import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut } from 'lucide-react';
+import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, WalletTransaction, ProviderAccount } from '../services/api';
 import PaymentRecordCard from '../components/PaymentRecordCard';
 import AddFundsModal from '../components/AddFundsModal';
+import LinkBankModal from '../components/LinkBankModal';
 import { useAuth } from '../context/AuthContext';
 
 export default function PaymentsPage() {
     const { user, refetchUser } = useAuth();
     const [payments, setPayments] = useState<SettlementRecord[]>([]);
+    const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+    const [bankAccounts, setBankAccounts] = useState<ProviderAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
+    const [isLinkBankOpen, setIsLinkBankOpen] = useState(false);
+    const [withdrawLoading, setWithdrawLoading] = useState(false);
 
     useEffect(() => {
-        loadPayments();
+        loadAll();
     }, []);
 
-    const loadPayments = async () => {
+    const loadAll = async () => {
         setLoading(true);
         try {
-            const data = await meApi.getPayments();
-            setPayments(data);
+            const [payData, transData, bankData] = await Promise.all([
+                meApi.getPayments(),
+                walletApi.getTransactions(),
+                bankLinksApi.list()
+            ]);
+            setPayments(payData);
+            setTransactions(transData);
+            setBankAccounts(bankData);
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        if (!user || user.wallet_balance <= 0) return;
+        if (bankAccounts.length === 0) {
+            alert("Please link a bank account to withdraw funds.");
+            return;
+        }
+
+        const account = bankAccounts[0]; // For MVP, withdraw to the first linked account
+        if (window.confirm(`Withdraw $${user.wallet_balance.toFixed(2)} to ${account.provider} (${account.account_mask})?`)) {
+            setWithdrawLoading(true);
+            try {
+                await walletApi.withdraw({
+                    destination_account: account.id
+                });
+                await refetchUser();
+                await loadAll();
+            } catch (err: any) {
+                alert(err.message || 'Failed to withdraw');
+            } finally {
+                setWithdrawLoading(false);
+            }
         }
     };
 
@@ -64,26 +99,82 @@ export default function PaymentsPage() {
                             >
                                 Add Funds
                             </button>
-                            <button className="flex-1 bg-indigo hover:bg-indigo-hover text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-lg shadow-indigo/20 cursor-not-allowed opacity-50">
-                                Withdraw
+                            <button
+                                onClick={handleWithdraw}
+                                disabled={withdrawLoading || !user || user.wallet_balance <= 0}
+                                className="flex-1 bg-indigo hover:bg-indigo-hover text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-lg shadow-indigo/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {withdrawLoading ? 'Processing...' : 'Withdraw'}
                             </button>
                         </div>
-                        <p className="text-xs text-white/40 mt-3 text-center">Wallet features coming soon (Phase 3)</p>
+                        <p className="text-xs text-white/40 mt-3 text-center">Powered by SplitEase Ledger</p>
                     </div>
                 </div>
 
-                <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-center items-center text-center">
-                    <div className="w-16 h-16 bg-bg border border-border/50 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
-                        <CreditCard className="w-8 h-8 text-secondary" />
+                {bankAccounts.length === 0 ? (
+                    <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-center items-center text-center">
+                        <div className="w-16 h-16 bg-bg border border-border/50 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                            <Building2 className="w-8 h-8 text-secondary" />
+                        </div>
+                        <h3 className="text-lg font-bold text-primary mb-2">Linked Accounts</h3>
+                        <p className="text-sm text-secondary mb-6 max-w-[250px]">
+                            Connect your bank to add funds or withdraw your balance securely.
+                        </p>
+                        <button
+                            onClick={() => setIsLinkBankOpen(true)}
+                            className="px-6 py-2.5 bg-indigo hover:bg-indigo-hover rounded-xl text-sm font-semibold text-white transition-all shadow-md shadow-indigo/20 flex items-center gap-2 cursor-pointer"
+                        >
+                            <Building2 className="w-4 h-4" /> Link Bank Account
+                        </button>
                     </div>
-                    <h3 className="text-lg font-bold text-primary mb-2">Linked Accounts</h3>
-                    <p className="text-sm text-secondary mb-6 max-w-[250px]">
-                        Link a debit card or bank account for faster in-app payments.
-                    </p>
-                    <button className="px-6 py-2.5 bg-bg hover:bg-surface border border-border hover:border-accent/40 rounded-xl text-sm font-semibold text-primary transition-all shadow-sm cursor-not-allowed opacity-50">
-                        Link Account (Soon)
-                    </button>
-                </div>
+                ) : (
+                    <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                                    <Building2 className="w-5 h-5 text-indigo" />
+                                    Linked Accounts
+                                </h3>
+                                <button
+                                    onClick={() => setIsLinkBankOpen(true)}
+                                    className="p-1.5 rounded-lg text-secondary hover:text-indigo hover:bg-indigo/10 transition-colors cursor-pointer"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {bankAccounts.map(account => (
+                                    <div key={account.id} className="flex items-center justify-between p-4 rounded-xl bg-bg border border-border">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-surface flex items-center justify-center border border-border/50">
+                                                <Building2 className="w-5 h-5 text-secondary" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-primary">{account.provider}</p>
+                                                <p className="text-xs text-secondary tracking-widest">{account.account_mask}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                if (window.confirm(`Unlink ${account.provider}?`)) {
+                                                    try {
+                                                        await bankLinksApi.remove(account.id);
+                                                        await loadAll();
+                                                    } catch (err: any) { alert(err.message); }
+                                                }
+                                            }}
+                                            className="p-2 rounded-lg text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                            title="Unlink Account"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {loading ? (
@@ -106,7 +197,7 @@ export default function PaymentsPage() {
                                         record={p}
                                         currentUserId={user?.id || ''}
                                         groupId={p.group_id}
-                                        onUpdated={loadPayments}
+                                        onUpdated={loadAll}
                                     />
                                 ))}
                                 {needToSend.map((p) => (
@@ -115,34 +206,58 @@ export default function PaymentsPage() {
                                         record={p}
                                         currentUserId={user?.id || ''}
                                         groupId={p.group_id}
-                                        onUpdated={loadPayments}
+                                        onUpdated={loadAll}
                                     />
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* History */}
+                    {/* Transaction History (Ledger) */}
                     <div>
                         <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                             <History className="w-5 h-5 text-secondary" />
-                            Payment History
+                            Ledger History
                         </h2>
-                        {history.length === 0 ? (
+                        {transactions.length === 0 ? (
                             <div className="bg-surface border border-border rounded-2xl p-10 text-center">
                                 <History className="w-10 h-10 text-border mx-auto mb-3" />
-                                <p className="text-secondary text-sm">No completed or declined payments yet.</p>
+                                <p className="text-secondary text-sm">No transactions yet.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {history.map((p) => (
-                                    <PaymentRecordCard
-                                        key={p.id}
-                                        record={p}
-                                        currentUserId={user?.id || ''}
-                                        groupId={p.group_id}
-                                        onUpdated={loadPayments}
-                                    />
+                                {transactions.map((t) => (
+                                    <div key={t.id} className="flex items-center justify-between p-4 bg-surface border border-border rounded-2xl flex-wrap gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0
+                                                ${t.tx_type === 'deposit' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                                                    t.tx_type === 'withdrawal' ? 'bg-indigo/10 border-indigo/20 text-indigo' :
+                                                        'bg-accent/10 border-accent/20 text-accent'}
+                                            `}>
+                                                {t.tx_type === 'deposit' ? <ArrowDownRight className="w-5 h-5" /> :
+                                                    t.tx_type === 'withdrawal' ? <ArrowUpRight className="w-5 h-5" /> :
+                                                        <ArrowRightLeft className="w-5 h-5" />}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-primary capitalize">{t.tx_type}</p>
+                                                <p className="text-xs text-secondary mt-0.5">
+                                                    {new Date(t.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    {t.related_request_id && " • Payment Request"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`font-black text-lg ${t.tx_type === 'deposit' || t.tx_type === 'transfer_in' ? 'text-emerald-500' : 'text-primary'}`}>
+                                                {t.tx_type === 'deposit' || t.tx_type === 'transfer_in' ? '+' : '-'}${t.amount.toFixed(2)}
+                                            </p>
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 block
+                                                ${t.status === 'completed' || t.status === 'settled' ? 'text-emerald-500/80' :
+                                                    t.status === 'pending' ? 'text-warning/80' : 'text-danger/80'}
+                                            `}>
+                                                {t.status}
+                                            </span>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}
@@ -154,7 +269,17 @@ export default function PaymentsPage() {
                 isOpen={isAddFundsOpen}
                 onClose={() => setIsAddFundsOpen(false)}
                 onSuccess={() => {
-                    refetchUser(); // Ensure entire app context is synced
+                    refetchUser();
+                    loadAll();
+                }}
+            />
+
+            <LinkBankModal
+                isOpen={isLinkBankOpen}
+                onClose={() => setIsLinkBankOpen(false)}
+                onSuccess={() => {
+                    refetchUser();
+                    loadAll();
                 }}
             />
         </div>
