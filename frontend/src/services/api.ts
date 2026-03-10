@@ -295,6 +295,25 @@ export const bankLinksApi = {
     remove: (id: string) => request<void>(`/bank-links/${id}`, { method: 'DELETE' }),
 };
 
+export const plaidApi = {
+    createLinkToken: () => request<{ link_token: string }>('/plaid/create-link-token', { method: 'POST' }),
+    setAccessToken: (public_token: string, institution_id: string, institution_name: string, account_id: string) =>
+        request<ProviderAccount>('/plaid/set-access-token', {
+            method: 'POST',
+            body: JSON.stringify({ public_token, institution_id, institution_name, account_id })
+        }),
+};
+
+export const stripeApi = {
+    onboard: () => request<{ url: string }>('/stripe/onboard', { method: 'POST' }),
+    getStatus: () => request<{ onboarded: boolean }>('/stripe/status'),
+    createPaymentIntent: (data: { amount: number; payee_id: string; provider_account_id: string }) =>
+        request<{ client_secret: string; status: string }>('/stripe/create-payment-intent', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+};
+
 export interface WalletTransaction {
     id: string;
     user_id: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut } from 'lucide-react';
-import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, WalletTransaction, ProviderAccount } from '../services/api';
+import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut, CheckCircle, ExternalLink } from 'lucide-react';
+import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, stripeApi, WalletTransaction, ProviderAccount } from '../services/api';
 import PaymentRecordCard from '../components/PaymentRecordCard';
 import AddFundsModal from '../components/AddFundsModal';
 import LinkBankModal from '../components/LinkBankModal';
@@ -15,6 +15,8 @@ export default function PaymentsPage() {
     const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
     const [isLinkBankOpen, setIsLinkBankOpen] = useState(false);
     const [withdrawLoading, setWithdrawLoading] = useState(false);
+    const [stripeOnboarded, setStripeOnboarded] = useState(false);
+    const [stripeLoading, setStripeLoading] = useState(false);
 
     useEffect(() => {
         loadAll();
@@ -23,14 +25,16 @@ export default function PaymentsPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [payData, transData, bankData] = await Promise.all([
+            const [payData, transData, bankData, stripeData] = await Promise.all([
                 meApi.getPayments(),
                 walletApi.getTransactions(),
-                bankLinksApi.list()
+                bankLinksApi.list(),
+                stripeApi.getStatus()
             ]);
             setPayments(payData);
             setTransactions(transData);
             setBankAccounts(bankData);
+            setStripeOnboarded(stripeData.onboarded);
         } catch (err) {
             console.error(err);
         } finally {
@@ -62,6 +66,18 @@ export default function PaymentsPage() {
         }
     };
 
+    const handleStripeOnboard = async () => {
+        setStripeLoading(true);
+        try {
+            const res = await stripeApi.onboard();
+            window.location.href = res.url;
+        } catch (err: any) {
+            alert(err.message || 'Failed to initiate Stripe onboarding');
+        } finally {
+            setStripeLoading(false);
+        }
+    };
+
     const pendingConfirmation = payments.filter(
         (p) => p.payee_id === user?.id && p.status === 'sent'
     );
@@ -80,7 +96,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* Wallet Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="bg-gradient-to-br from-indigo/20 to-surface-light border border-indigo/20 rounded-3xl p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
                     <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -175,6 +191,34 @@ export default function PaymentsPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Stripe Connect Section */}
+                <div className="bg-surface border border-border rounded-3xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div className="w-10 h-10 bg-[#635BFF]/10 rounded-xl flex items-center justify-center border border-[#635BFF]/30 mb-4">
+                            <CreditCard className="w-5 h-5 text-[#635BFF]" />
+                        </div>
+                        <h3 className="text-lg font-bold text-primary mb-2">Receive Payments</h3>
+                        <p className="text-sm text-secondary mb-6">
+                            Connect your bank with Stripe to receive instant payouts from friends.
+                        </p>
+                    </div>
+                    {stripeOnboarded ? (
+                        <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                            <p className="text-sm font-bold text-emerald-500">Stripe Connected</p>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleStripeOnboard}
+                            disabled={stripeLoading}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-[#635BFF] hover:bg-[#524BFF] text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-[#635BFF]/20 cursor-pointer disabled:opacity-50"
+                        >
+                            {stripeLoading ? 'Connecting...' : 'Connect Stripe'} 
+                            {!stripeLoading && <ExternalLink className="w-4 h-4" />}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {loading ? (

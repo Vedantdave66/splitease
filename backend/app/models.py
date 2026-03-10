@@ -16,6 +16,7 @@ class User(Base):
     avatar_color: Mapped[str] = mapped_column(String(7), default="#3ECF8E")
     wallet_balance: Mapped[float] = mapped_column(Float, default=0.0)
     interac_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    stripe_account_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     groups: Mapped[list["GroupMember"]] = relationship(back_populates="user")
@@ -139,6 +140,7 @@ class ProviderAccount(Base):
     account_id: Mapped[str] = mapped_column(String(255), nullable=False)
     account_mask: Mapped[str] = mapped_column(String(4), nullable=False)
     institution_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    access_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="linked")  # linked | relink_required | verification_required | removed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -156,6 +158,7 @@ class WalletTransaction(Base):
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | processing | completed | failed | cancelled | reversed
     reference_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # link to a payment_request, provider_account, etc.
+    stripe_payment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { X, Building2, CheckCircle2, ShieldCheck, Landmark } from 'lucide-react';
-import { bankLinksApi } from '../services/api';
+import { useState, useCallback, useEffect } from 'react';
+import { usePlaidLink } from 'react-plaid-link';
+import { X, CheckCircle2, ShieldCheck, Landmark } from 'lucide-react';
+import { plaidApi } from '../services/api';
 
 interface LinkBankModalProps {
     isOpen: boolean;
@@ -8,50 +9,64 @@ interface LinkBankModalProps {
     onSuccess: () => void;
 }
 
-const INSTITUTIONS = [
-    { name: 'RBC Royal Bank', icon: 'RBC', color: 'bg-white text-[#0055A5] font-black', border: 'border-indigo/30' },
-    { name: 'TD Canada Trust', icon: <Building2 className="w-6 h-6 text-white" />, color: 'bg-[#008A00]', border: 'border-border' },
-    { name: 'Scotiabank', icon: 'S', color: 'bg-[#E3000F] text-white font-black', border: 'border-red-500/30' },
-    { name: 'BMO', icon: 'M', color: 'bg-[#0079C1] text-white font-black', border: 'border-blue-500/30' },
-];
-
 export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankModalProps) {
-    const [step, setStep] = useState<'intro' | 'select' | 'connecting' | 'success'>('intro');
-    const [selectedBank, setSelectedBank] = useState<string | null>(null);
+    const [step, setStep] = useState<'intro' | 'connecting' | 'success'>('intro');
+    const [linkToken, setLinkToken] = useState<string | null>(null);
     const [error, setError] = useState('');
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (isOpen && !linkToken) {
+            // Fetch link token from backend when modal opens
+            plaidApi.createLinkToken()
+                .then(res => setLinkToken(res.link_token))
+                .catch(err => setError(err.message || 'Failed to initialize Plaid'));
+        }
+    }, [isOpen, linkToken]);
 
-    const handleSelectBank = async (bankName: string) => {
-        setSelectedBank(bankName);
+    const onSuccessPlaid = useCallback(async (public_token: string, metadata: any) => {
         setStep('connecting');
         setError('');
-
+        
         try {
-            // Simulate Plaid auth flow delay
-            await new Promise((resolve) => setTimeout(resolve, 2500));
+            const institution = metadata.institution;
+            const account = metadata.accounts && metadata.accounts.length > 0 ? metadata.accounts[0] : null;
+            
+            if (!account) throw new Error("No account was selected");
 
-            // Randomly generate a mock account mask, e.g "4912"
-            const mask = Math.floor(1000 + Math.random() * 9000).toString();
-
-            await bankLinksApi.link(bankName, mask, 'plaid');
+            await plaidApi.setAccessToken(
+                public_token, 
+                institution.institution_id, 
+                institution.name, 
+                account.id
+            );
+            
             setStep('success');
-
             setTimeout(() => {
                 onSuccess();
                 handleClose();
             }, 2000);
-
+            
         } catch (err: any) {
-            setError(err.message || 'Failed to connect institution. Please try again.');
-            setStep('select');
+            setError(err.message || 'Failed to link account securely.');
+            setStep('intro');
+        }
+    }, [onSuccess]);
+
+    const config = {
+        token: linkToken!,
+        onSuccess: onSuccessPlaid,
+        onExit: (err: any, metadata: any) => {
+            if (err) setError(err.message || 'User exited or error occurred');
         }
     };
+
+    const { open, ready } = usePlaidLink(config);
+
+    if (!isOpen) return null;
 
     const handleClose = () => {
         setTimeout(() => {
             setStep('intro');
-            setSelectedBank(null);
             setError('');
         }, 300);
         onClose();
@@ -61,7 +76,6 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-surface border border-border rounded-3xl w-full max-w-md shadow-2xl overflow-hidden relative">
 
-                {/* Simulated Plaid Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border bg-black/40">
                     <div className="flex items-center gap-2 text-secondary">
                         <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -78,7 +92,6 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                 </div>
 
                 <div className="p-6">
-                    {/* Intro Step */}
                     {step === 'intro' && (
                         <div className="space-y-6 text-center animate-in slide-in-from-right-4">
                             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-indigo/10 border border-indigo/20 mb-2">
@@ -106,50 +119,18 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                                 </li>
                             </ul>
 
+                            {error && <p className="text-sm text-danger text-center font-medium mb-4">{error}</p>}
+
                             <button
-                                onClick={() => setStep('select')}
-                                className="w-full py-4 rounded-xl font-bold text-white bg-indigo hover:bg-indigo-hover transition-colors shadow-lg shadow-indigo/20 cursor-pointer"
+                                onClick={() => open()}
+                                disabled={!ready || !linkToken}
+                                className="w-full py-4 rounded-xl font-bold text-white bg-indigo hover:bg-indigo-hover transition-colors shadow-lg shadow-indigo/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Continue
+                                {!linkToken ? 'Initializing Plaid...' : 'Continue with Plaid'}
                             </button>
                         </div>
                     )}
 
-                    {/* Selection Step */}
-                    {step === 'select' && (
-                        <div className="space-y-4 animate-in slide-in-from-right-4">
-                            <h2 className="text-xl font-bold text-primary mb-4">Select Institution</h2>
-
-                            <div className="grid gap-3">
-                                {INSTITUTIONS.map((bank) => (
-                                    <button
-                                        key={bank.name}
-                                        onClick={() => handleSelectBank(bank.name)}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border ${bank.border} bg-bg hover:bg-surface-hover transition-colors group cursor-pointer`}
-                                    >
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm ${bank.color}`}>
-                                            {typeof bank.icon === 'string' ? (
-                                                <span className="text-lg">{bank.icon}</span>
-                                            ) : (
-                                                bank.icon
-                                            )}
-                                        </div>
-                                        <p className="font-bold text-primary group-hover:text-indigo transition-colors">{bank.name}</p>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="mt-4 pt-4 border-t border-border flex justify-center">
-                                <button className="text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer">
-                                    Search for another institution
-                                </button>
-                            </div>
-
-                            {error && <p className="text-sm text-danger text-center font-medium mt-4">{error}</p>}
-                        </div>
-                    )}
-
-                    {/* Connecting Step */}
                     {step === 'connecting' && (
                         <div className="py-12 flex flex-col items-center justify-center space-y-6 animate-in zoom-in-95">
                             <div className="relative">
@@ -158,13 +139,12 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                                 <Landmark className="w-8 h-8 text-emerald-500 absolute inset-0 m-auto animate-pulse" />
                             </div>
                             <div className="text-center space-y-2">
-                                <p className="text-lg font-bold text-primary">Authenticating</p>
-                                <p className="text-sm text-secondary">Establishing secure connection to {selectedBank}...</p>
+                                <p className="text-lg font-bold text-primary">Securing Connection</p>
+                                <p className="text-sm text-secondary">Finalizing setup with your bank...</p>
                             </div>
                         </div>
                     )}
 
-                    {/* Success Step */}
                     {step === 'success' && (
                         <div className="py-10 flex flex-col items-center justify-center space-y-4 animate-in zoom-in">
                             <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-2 relative">
@@ -172,7 +152,7 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                                 <CheckCircle2 className="w-10 h-10 text-emerald-500 relative z-10" />
                             </div>
                             <h3 className="text-2xl font-black text-primary">Account Linked</h3>
-                            <p className="text-secondary text-sm text-center">Your {selectedBank} account is now ready to use with SplitEase.</p>
+                            <p className="text-secondary text-sm text-center">Your bank account is now ready to use with SplitEase.</p>
                         </div>
                     )}
                 </div>

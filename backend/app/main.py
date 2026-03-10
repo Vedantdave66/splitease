@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet, bank_links, requests
+from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet, bank_links, requests, plaid_routes, stripe_routes
 from app.services import balance_service
 
 
@@ -29,7 +29,25 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0;"))
     except Exception:
         pass  # Ignore if column already exists
-            
+        
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE provider_accounts ADD COLUMN access_token VARCHAR(255);"))
+    except Exception:
+        pass
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN stripe_account_id VARCHAR(255);"))
+    except Exception:
+        pass
+        
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE wallet_transactions ADD COLUMN stripe_payment_id VARCHAR(255);"))
+    except Exception:
+        pass
+
     yield
 
 
@@ -63,6 +81,8 @@ app.include_router(friends.router)
 app.include_router(wallet.router)
 app.include_router(bank_links.router)
 app.include_router(requests.router)
+app.include_router(plaid_routes.router)
+app.include_router(stripe_routes.router)
 
 
 @app.get("/")
