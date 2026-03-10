@@ -43,7 +43,7 @@ type Tab = 'expenses' | 'balances' | 'settlements' | 'payments';
 export default function GroupPage() {
     const { groupId } = useParams<{ groupId: string }>();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
 
     const [group, setGroup] = useState<Group | null>(null);
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -59,6 +59,7 @@ export default function GroupPage() {
     const [inviteMsg, setInviteMsg] = useState('');
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [payingRequestId, setPayingRequestId] = useState<string | null>(null);
 
     // Edit expense state
     const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
@@ -165,6 +166,26 @@ export default function GroupPage() {
         navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handlePayRequest = async (request: PaymentRequestData) => {
+        if (!user) return;
+        if (user.wallet_balance < request.amount) {
+            alert(`Insufficient balance. You need $${request.amount.toFixed(2)} but only have $${user.wallet_balance.toFixed(2)} in your wallet. Please add funds from the Payments tab on the dashboard.`);
+            return;
+        }
+
+        try {
+            setPayingRequestId(request.id);
+            await requestsApi.payWithWallet(request.id);
+            // Optimistically update local user balance
+            setUser({ ...user, wallet_balance: user.wallet_balance - request.amount });
+            await loadAll();
+        } catch (err: any) {
+            alert(err.message || 'Failed to pay request');
+        } finally {
+            setPayingRequestId(null);
+        }
     };
 
     const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
@@ -455,10 +476,11 @@ export default function GroupPage() {
                                             </div>
                                             {isPayer ? (
                                                 <button
-                                                    onClick={() => navigate('/payments')} // They will pay it from the Payments/Wallet page logic we will build next
-                                                    className="px-4 py-2 bg-indigo hover:bg-indigo-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                                                    onClick={() => handlePayRequest(req)}
+                                                    disabled={payingRequestId === req.id}
+                                                    className="px-4 py-2 bg-indigo hover:bg-indigo-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
                                                 >
-                                                    Pay Now
+                                                    {payingRequestId === req.id ? 'Paying...' : 'Pay Now'}
                                                 </button>
                                             ) : (
                                                 <span className="text-xs font-bold text-secondary uppercase bg-bg px-2 py-1 rounded-md border border-border">Pending</span>
