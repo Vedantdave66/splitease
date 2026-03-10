@@ -9,11 +9,16 @@ from app.schemas import ProviderAccountOut
 
 router = APIRouter(prefix="/api/bank-links", tags=["Bank Links"])
 
+from pydantic import BaseModel
+
+class BankLinkRequest(BaseModel):
+    institution_name: str
+    account_mask: str
+    provider: str = "plaid"
+
 @router.post("", response_model=ProviderAccountOut)
 async def link_bank_account(
-    institution_name: str,
-    account_mask: str,
-    provider: str = "plaid",
+    data: BankLinkRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -21,14 +26,14 @@ async def link_bank_account(
     Simulates the callback from a provider like Plaid Link.
     Creates a new linked ProviderAccount for the user.
     """
-    account_id = f"acc_{provider}_{account_mask}_{current_user.id[:8]}"
+    account_id = f"acc_{data.provider}_{data.account_mask}_{current_user.id[:8]}"
     
     new_account = ProviderAccount(
         user_id=current_user.id,
-        provider=provider,
+        provider=data.provider,
         account_id=account_id,
-        account_mask=account_mask,
-        institution_name=institution_name,
+        account_mask=data.account_mask,
+        institution_name=data.institution_name,
         status="linked"
     )
     

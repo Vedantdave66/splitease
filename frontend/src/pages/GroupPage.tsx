@@ -167,6 +167,28 @@ export default function GroupPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+
+    const effectiveSettlements = settlements.map(s => {
+        const pendingOrSentAmount = paymentRecords
+            .filter(r => r.payer_id === s.from_user_id && r.payee_id === s.to_user_id && (r.status === 'pending' || r.status === 'sent'))
+            .reduce((sum, r) => sum + r.amount, 0);
+        return { ...s, amount: s.amount - pendingOrSentAmount };
+    }).filter(s => s.amount > 0.01);
+
+    // Find settlements where the current user owes money
+    const mySettlements = effectiveSettlements.filter(s => s.from_user_id === user?.id);
+
+    const uniquePaymentRecords = paymentRecords.filter((record, index, self) => {
+        if (record.status === 'settled' || record.status === 'declined') return true;
+        return index === self.findIndex((t) => (
+            t.payer_id === record.payer_id &&
+            t.payee_id === record.payee_id &&
+            t.status === record.status &&
+            t.amount === record.amount
+        ));
+    });
+
     const tabs: { key: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
         { key: 'expenses', label: 'Expenses', icon: <Receipt className="w-4 h-4" /> },
         { key: 'balances', label: 'Balances', icon: <BarChart3 className="w-4 h-4" /> },
@@ -175,7 +197,7 @@ export default function GroupPage() {
             key: 'payments',
             label: 'Payments',
             icon: <CreditCard className="w-4 h-4" />,
-            badge: paymentRecords.filter(r => r.status !== 'settled').length
+            badge: uniquePaymentRecords.filter(r => r.status !== 'settled').length
         },
     ];
 
@@ -195,10 +217,7 @@ export default function GroupPage() {
         );
     }
 
-    const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
 
-    // Find settlements where the current user owes money
-    const mySettlements = settlements.filter(s => s.from_user_id === user?.id);
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -454,7 +473,7 @@ export default function GroupPage() {
                     {/* Calculated Group Debt Settlements */}
                     <div>
                         <h3 className="text-lg font-bold text-primary mb-3">Suggested Settlements</h3>
-                        {settlements.length === 0 ? (
+                        {effectiveSettlements.length === 0 ? (
                             <div className="bg-surface border border-border rounded-2xl p-12 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                                     <Handshake className="w-7 h-7 text-accent" />
@@ -466,11 +485,11 @@ export default function GroupPage() {
                             <div>
                                 <div className="bg-surface-light border border-border rounded-xl p-4 mb-4">
                                     <p className="text-sm text-secondary">
-                                        <span className="text-accent font-bold">{settlements.length}</span> payment{settlements.length !== 1 ? 's' : ''} needed to settle all debts
+                                        <span className="text-accent font-bold">{effectiveSettlements.length}</span> payment{effectiveSettlements.length !== 1 ? 's' : ''} needed to settle all debts
                                     </p>
                                 </div>
                                 <div className="space-y-3">
-                                    {settlements.map((s, i) => {
+                                    {effectiveSettlements.map((s, i) => {
                                         const canSettle = s.from_user_id === user?.id;
                                         return (
                                             <div key={i} className="bg-[#0C0E14] border border-white/[0.06] rounded-2xl p-5 hover:border-white/10 transition-all duration-300">
@@ -523,7 +542,7 @@ export default function GroupPage() {
                             {/* Status summary */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                                 {(['pending', 'sent', 'settled', 'declined'] as const).map((status) => {
-                                    const count = paymentRecords.filter(r => r.status === status).length;
+                                    const count = uniquePaymentRecords.filter(r => r.status === status).length;
                                     return (
                                         <div key={status} className="bg-surface border border-border rounded-xl p-3 text-center">
                                             <p className="text-lg font-black text-white mb-1">{count}</p>
@@ -534,7 +553,7 @@ export default function GroupPage() {
                             </div>
 
                             <div className="space-y-3">
-                                {paymentRecords.map((record) => (
+                                {uniquePaymentRecords.map((record) => (
                                     <PaymentRecordCard
                                         key={record.id}
                                         record={record}
