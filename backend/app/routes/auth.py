@@ -61,17 +61,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 
 @router.post("/register", response_model=Token)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
+    email_lower = data.email.lower()
     # Check if email already exists
-    result = await db.execute(select(User).where(User.email == data.email))
+    result = await db.execute(select(User).where(User.email == email_lower))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user = User(
         name=data.name,
-        email=data.email,
+        email=email_lower,
         hashed_password=hash_password(data.password),
         avatar_color=random.choice(AVATAR_COLORS),
-        interac_email=data.interac_email,
+        interac_email=data.interac_email.lower() if data.interac_email else None,
     )
     db.add(user)
     await db.flush()
@@ -83,7 +84,8 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == data.email))
+    email_lower = data.email.lower()
+    result = await db.execute(select(User).where(User.email == email_lower))
     user = result.scalar_one_or_none()
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -139,7 +141,8 @@ def send_reset_email_sync(to_email: str, reset_link: str):
 
 @router.post("/forgot-password")
 async def forgot_password(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == data.email))
+    email_lower = data.email.lower()
+    result = await db.execute(select(User).where(User.email == email_lower))
     user = result.scalar_one_or_none()
     
     if user:
