@@ -37,7 +37,8 @@ export default function ResetPasswordPage() {
             setSubmitted(true);
         } catch (error: any) {
             console.error('Password reset failed:', error);
-            setErrorMsg(error.message || 'Failed to reset password. The link might have expired.');
+            const msg = error.message || 'Failed to reset password. The link might have expired.';
+            setErrorMsg(msg);
         } finally {
             setLoading(false);
         }

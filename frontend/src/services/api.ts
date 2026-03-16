@@ -249,6 +249,18 @@ export const meApi = {
     getFriends: () => request<Friend[]>('/me/friends'),
 };
 
+// --- Users (Search) ---
+export interface UserSearchResult {
+    id: string;
+    name: string;
+    email: string;
+    avatar_color: string;
+}
+
+export const usersApi = {
+    search: (query: string) => request<UserSearchResult[]>(`/users/search?query=${encodeURIComponent(query)}`),
+};
+
 // --- Friend Requests ---
 export interface FriendRequest {
     id: string;

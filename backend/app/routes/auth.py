@@ -153,9 +153,12 @@ async def forgot_password(data: PasswordResetRequest, db: AsyncSession = Depends
         
         # Build the reset link
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+        print(f"DEBUG: Password reset link generated for {user.email}: {reset_link}")
         
         # Dispatch the email asynchronously so we don't block the request
         asyncio.create_task(asyncio.to_thread(send_reset_email_sync, user.email, reset_link))
+    else:
+        print(f"DEBUG: Password reset requested for non-existent email: {email_lower}")
     
     # Always return success to prevent email enumeration
     return {"message": "If an account with that email exists, we have sent a password reset link."}
@@ -173,8 +176,10 @@ async def reset_password(data: PasswordResetConfirm, db: AsyncSession = Depends(
         token_type: str = payload.get("type")
         
         if user_id is None or token_type != "password_reset":
+            print(f"DEBUG: Invalid token payload: user_id={user_id}, type={token_type}")
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        print(f"DEBUG: JWT Decode Error during password reset: {e}")
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.id == user_id))
