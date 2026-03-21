@@ -68,7 +68,7 @@ export default function DashboardPage() {
                             Welcome back, {user?.name?.split(' ')[0]}
                         </h1>
                         <p className="text-secondary tracking-wide text-base leading-relaxed">
-                            Manage your shared financial spaces, track group balances, and settle up with friends effortlessly.
+                            Manage your shared financial spaces, track group balances, and pay balances effortlessly.
                         </p>
                     </div>
                     {/* Optional Abstract Decoration */}

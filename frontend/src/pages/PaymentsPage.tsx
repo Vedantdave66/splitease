@@ -103,7 +103,7 @@ export default function PaymentsPage() {
                         <div className="w-10 h-10 bg-indigo/20 rounded-xl flex items-center justify-center border border-indigo/30">
                             <Wallet className="w-5 h-5 text-indigo" />
                         </div>
-                        <h3 className="text-lg font-bold text-primary">SplitEase Balance</h3>
+                        <h3 className="text-lg font-bold text-primary">Tandem Balance</h3>
                     </div>
                     <div className="relative z-10">
                         <p className="text-sm font-medium text-secondary mb-1">Available Funds</p>
@@ -123,7 +123,7 @@ export default function PaymentsPage() {
                                 {withdrawLoading ? 'Processing...' : 'Withdraw'}
                             </button>
                         </div>
-                        <p className="text-xs text-secondary mt-3 text-center">Powered by SplitEase Ledger</p>
+                        <p className="text-xs text-secondary mt-3 text-center">Powered by Tandem Ledger</p>
                     </div>
                 </div>
 

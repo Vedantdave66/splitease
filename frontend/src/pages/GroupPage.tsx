@@ -213,7 +213,7 @@ export default function GroupPage() {
     const tabs: { key: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
         { key: 'expenses', label: 'Expenses', icon: <Receipt className="w-4 h-4" /> },
         { key: 'balances', label: 'Balances', icon: <BarChart3 className="w-4 h-4" /> },
-        { key: 'settlements', label: 'Settle Up', icon: <Handshake className="w-4 h-4" />, badge: settlements.length },
+        { key: 'settlements', label: 'Pay Balance', icon: <Handshake className="w-4 h-4" />, badge: settlements.length },
         {
             key: 'payments',
             label: 'Payments',
@@ -325,7 +325,7 @@ export default function GroupPage() {
                     </div>
                 </div>
 
-                {/* Quick Settle Up Banner */}
+                {/* Quick Pay Balance Banner */}
                 {mySettlements.length > 0 && (
                     <div className="mt-5 pt-5 border-t border-border">
                         <div className="bg-gradient-to-r from-accent/5 to-indigo/5 border border-accent/10 rounded-xl p-4">
@@ -348,7 +348,7 @@ export default function GroupPage() {
                                                 }}
                                                 className="px-3 py-1.5 bg-accent/20 hover:bg-accent/30 border border-accent/20 text-accent text-xs font-bold rounded-lg transition-all cursor-pointer"
                                             >
-                                                Settle Up
+                                                Pay Balance
                                             </button>
                                         </div>
                                     </div>
@@ -492,7 +492,7 @@ export default function GroupPage() {
                         </div>
                     )}
 
-                    {/* Calculated Group Debt Settlements */}
+                    {/* Calculated Group Balance Settlements */}
                     <div>
                         <h3 className="text-lg font-bold text-primary mb-3">Suggested Settlements</h3>
                         {effectiveSettlements.length === 0 ? (
@@ -507,7 +507,7 @@ export default function GroupPage() {
                             <div>
                                 <div className="bg-surface-light border border-border rounded-xl p-4 mb-4">
                                     <p className="text-sm text-secondary">
-                                        <span className="text-accent font-bold">{effectiveSettlements.length}</span> payment{effectiveSettlements.length !== 1 ? 's' : ''} needed to settle all debts
+                                        <span className="text-accent font-bold">{effectiveSettlements.length}</span> payment{effectiveSettlements.length !== 1 ? 's' : ''} needed to settle all balances
                                     </p>
                                 </div>
                                 <div className="space-y-3">
@@ -536,7 +536,7 @@ export default function GroupPage() {
                                                         className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
                                                     >
                                                         <Handshake className="w-4 h-4" />
-                                                        Settle Up ${s.amount.toFixed(2)}
+                                                        Pay {s.amount.toFixed(2)}
                                                     </button>
                                                 )}
                                             </div>
@@ -605,7 +605,7 @@ export default function GroupPage() {
                 />
             )}
 
-            {/* Settle Up Modal */}
+            {/* Pay Balance Modal */}
             {settleUpTarget && groupId && user && (
                 <SettleUpModal
                     groupId={groupId}

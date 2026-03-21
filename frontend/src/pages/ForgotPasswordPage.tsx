@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
                     <div className="w-11 h-11 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20">
                         <Wallet className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-2xl font-bold text-primary">SplitEase</span>
+                    <span className="text-2xl font-bold text-primary">Tandem</span>
                 </div>
 
                 {/* Card */}

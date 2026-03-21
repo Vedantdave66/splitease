@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
                         <Wallet className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-lg font-bold text-primary">SplitEase</span>
+                    <span className="text-lg font-bold text-primary">Tandem</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
@@ -61,7 +61,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <div className="w-9 h-9 bg-accent rounded-lg flex items-center justify-center">
                             <Wallet className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-lg font-bold text-primary">SplitEase</span>
+                        <span className="text-lg font-bold text-primary">Tandem</span>
                     </div>
                     <button
                         onClick={() => setIsMobileMenuOpen(false)}

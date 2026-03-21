@@ -100,7 +100,7 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                             <div>
                                 <h2 className="text-2xl font-bold text-primary mb-2">Link your bank account</h2>
                                 <p className="text-secondary text-sm">
-                                    SplitEase uses Plaid to securely connect your accounts. We never see or store your login credentials.
+                                    Tandem uses Plaid to securely connect your accounts. We never see or store your login credentials.
                                 </p>
                             </div>
 
@@ -111,7 +111,7 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                                 </li>
                                 <li className="flex gap-3">
                                     <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
-                                    <span className="text-sm text-secondary">Settle group debts directly</span>
+                                    <span className="text-sm text-secondary">Pay group balances directly</span>
                                 </li>
                                 <li className="flex gap-3">
                                     <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
@@ -152,7 +152,7 @@ export default function LinkBankModal({ isOpen, onClose, onSuccess }: LinkBankMo
                                 <CheckCircle2 className="w-10 h-10 text-emerald-500 relative z-10" />
                             </div>
                             <h3 className="text-2xl font-black text-primary">Account Linked</h3>
-                            <p className="text-secondary text-sm text-center">Your bank account is now ready to use with SplitEase.</p>
+                            <p className="text-secondary text-sm text-center">Your bank account is now ready to use with Tandem.</p>
                         </div>
                     )}
                 </div>

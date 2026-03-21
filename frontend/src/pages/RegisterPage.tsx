@@ -58,7 +58,7 @@ export default function RegisterPage() {
                     <div className="w-11 h-11 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20">
                         <Wallet className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-2xl font-bold text-primary">SplitEase</span>
+                    <span className="text-2xl font-bold text-primary">Tandem</span>
                 </div>
 
                 <div className="bg-surface border border-border rounded-2xl p-8 shadow-2xl shadow-black/20">
@@ -112,7 +112,7 @@ export default function RegisterPage() {
                                 placeholder="For friends to pay you back"
                                 className="w-full bg-bg border border-border rounded-xl px-4 py-3 text-sm text-primary placeholder-secondary/50 focus:outline-none focus:border-accent transition-colors"
                             />
-                            <p className="text-[11px] text-secondary/60 mt-1.5 ml-1">If provided, this is the email friends will see when settling debts via E-Transfer.</p>
+                            <p className="text-[11px] text-secondary/60 mt-1.5 ml-1">If provided, this is the email friends will see when paying balances via E-Transfer.</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-secondary mb-2">Password</label>

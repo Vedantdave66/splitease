@@ -16,7 +16,7 @@ export default function LandingPage() {
                         <div className="relative w-10 h-10 bg-gradient-to-br from-accent to-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-accent/20">
                             <Wallet className="w-5 h-5 text-[#064E3B]" />
                         </div>
-                        <span className="relative text-xl font-bold tracking-tight text-white">SplitEase</span>
+                        <span className="relative text-xl font-bold tracking-tight text-white">Tandem</span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link
@@ -45,13 +45,13 @@ export default function LandingPage() {
 
                     <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight mb-8 leading-[1.1]">
                         Split expenses. <br className="hidden md:block" />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent via-emerald-400 to-indigo-400">
-                            Settle debts instantly.
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent to-accent-light">
+                            Settle balances instantly.
                         </span>
                     </h1>
 
-                    <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-12 leading-relaxed">
-                        Say goodbye to awkward money conversations. Track shared expenses, simplify group debts, and settle up with confidence using a modern, fast, and secure platform.
+                    <p className="text-lg md:text-xl text-secondary max-w-2xl mx-auto mb-12 leading-relaxed">
+                        Say goodbye to awkward money conversations. Track shared expenses, simplify group balances, and pay balances with confidence using a modern, fast, and secure platform.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -87,8 +87,8 @@ export default function LandingPage() {
                         />
                         <FeatureCard
                             icon={<TrendingUp className="w-6 h-6 text-accent" />}
-                            title="Smart Debt Simplification"
-                            description="We automatically calculate the minimum number of transactions needed to settle all debts."
+                            title="Smart Balance Simplification"
+                            description="We automatically calculate the minimum number of transactions needed to settle all balances."
                             glow="emerald-400"
                         />
                         <FeatureCard
@@ -107,9 +107,9 @@ export default function LandingPage() {
 
                         <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
                             <div>
-                                <h2 className="text-3xl font-bold text-white mb-6">Settle up your way</h2>
-                                <p className="text-white/60 mb-8 leading-relaxed">
-                                    When it's time to pay, simply click "Settle Up". Add your Interac e-Transfer email to let friends easily copy it and send you money directly from their banking app.
+                                <h2 className="text-3xl font-bold text-white mb-6">Pay balances your way</h2>
+                                <p className="text-lg text-secondary leading-relaxed mb-6">
+                                    When it's time to pay, simply click "Pay Balance". Add your Interac e-Transfer email to let friends easily copy it and send you money directly from their banking app.
                                 </p>
                                 <ul className="space-y-4">
                                     <li className="flex items-center gap-3 text-sm text-white/80">
@@ -142,7 +142,7 @@ export default function LandingPage() {
                                         </div>
                                     </div>
                                     <div className="w-full h-12 rounded-xl bg-gradient-to-r from-accent to-emerald-500 flex items-center justify-center text-[#064E3B] font-bold text-sm shadow-[0_0_20px_rgba(52,211,153,0.3)]">
-                                        Settle Up Now
+                                        Pay Balance Now
                                     </div>
                                 </div>
                             </div>
@@ -153,7 +153,7 @@ export default function LandingPage() {
 
             {/* Footer */}
             <footer className="border-t border-white/5 py-12 text-center text-sm text-white/30 relative z-10">
-                <p>© {new Date().getFullYear()} SplitEase. All rights reserved.</p>
+                <p>© {new Date().getFullYear()} Tandem. All rights reserved.</p>
             </footer>
         </div>
     );

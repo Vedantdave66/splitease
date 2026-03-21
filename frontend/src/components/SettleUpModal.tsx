@@ -130,7 +130,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
 
                 <div className="relative flex items-center justify-between p-6 pb-4">
                     <h2 className="text-lg font-bold text-primary">
-                        {step === 'method' && 'Settle Up'}
+                        {step === 'method' && 'Pay Balance'}
                         {step === 'etransfer' && 'E-Transfer'}
                         {step === 'select_bank' && 'Select Payment Method'}
                         {step === 'in_app_confirm' && 'Confirm Payment'}

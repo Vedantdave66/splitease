@@ -91,7 +91,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }: AddFundsMo
                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 border border-accent/20 mb-4">
                                     <Wallet className="w-8 h-8 text-accent" />
                                 </div>
-                                <p className="text-secondary text-sm">How much would you like to add to your SplitEase wallet?</p>
+                                <p className="text-secondary text-sm">How much would you like to add to your Tandem wallet?</p>
                             </div>
 
                             <div className="relative">
@@ -202,7 +202,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }: AddFundsMo
                                 <CheckCircle2 className="w-10 h-10 text-accent relative z-10" />
                             </div>
                             <h3 className="text-2xl font-black text-primary">${parseFloat(amount).toFixed(2)} Added!</h3>
-                            <p className="text-secondary text-sm">Your SplitEase wallet has been funded.</p>
+                            <p className="text-secondary text-sm">Your Tandem wallet has been funded.</p>
                         </div>
                     )}
                 </div>

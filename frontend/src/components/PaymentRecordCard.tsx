@@ -92,7 +92,7 @@ export default function PaymentRecordCard({ record, currentUserId, groupId, onUp
             {record.status === 'settled' && (
                 <div className="flex items-center gap-2 justify-center py-2 bg-accent/5 border border-accent/10 rounded-xl">
                     <CheckCircle2 className="w-4 h-4 text-accent" />
-                    <span className="text-xs font-semibold text-accent">Debt Settled</span>
+                    <span className="text-xs font-semibold text-accent">Balance Paid</span>
                 </div>
             )}
         </div>
