@@ -51,7 +51,7 @@ async def add_funds(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Add funds from an external source to the SplitEase wallet.
+    Add funds from an external source to the Tandem wallet.
 
     Flow:
       1. Input validation (no DB writes)

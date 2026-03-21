@@ -52,10 +52,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
-
-app = FastAPI(title="SplitEase API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Tandem API", version="1.0.0", lifespan=lifespan)
 
 # CORS: allow local dev + production frontend URL from env
+
 cors_origins = [
     "http://localhost:5173", 
     "http://127.0.0.1:5173",
@@ -88,10 +88,9 @@ app.include_router(stripe_routes.router)
 app.include_router(users.router)
 app.include_router(reconciliation_router)
 
-
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "SplitEase API is running"}
+    return {"status": "ok", "message": "Tandem API is running"}
 
 @app.get("/api/health")
 async def health():

@@ -40,7 +40,7 @@ class PublicTokenRequest(BaseModel):
 async def create_link_token(current_user: User = Depends(get_current_user)):
     request = LinkTokenCreateRequest(
         products=[Products("auth"), Products("transactions")],
-        client_name="SplitEase",
+        client_name="Tandem",
         country_codes=[CountryCode("US"), CountryCode("CA")],
         language="en",
         user=LinkTokenCreateRequestUser(client_user_id=current_user.id)

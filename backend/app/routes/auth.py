@@ -119,7 +119,7 @@ def send_reset_email_sync(to_email: str, reset_link: str) -> dict:
         <div style="max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             <h1 style="color: #18181b; font-size: 24px; margin-bottom: 10px;">Reset Your Password</h1>
             <p style="color: #71717a; font-size: 16px; margin-bottom: 30px; line-height: 1.5;">
-                We received a request to reset the password for your SplitEase account. Click the button below to choose a new password.
+                We received a request to reset the password for your Tandem account. Click the button below to choose a new password.
             </p>
             <a href="{reset_link}" style="display: inline-block; background-color: #3ECF8E; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; font-size: 16px;">
                 Reset Password
@@ -136,11 +136,11 @@ def send_reset_email_sync(to_email: str, reset_link: str) -> dict:
     from_email = settings.RESEND_FROM_EMAIL
     
     try:
-        print(f"DEBUG: [RESEND] Attempting send: from={from_email}, to={to_email}, subject='Reset your SplitEase Password'")
+        print(f"DEBUG: [RESEND] Attempting send: from={from_email}, to={to_email}, subject='Reset your Tandem Password'")
         params = {
             "from": from_email,
             "to": [to_email],
-            "subject": "Reset your SplitEase Password",
+            "subject": "Reset your Tandem Password",
             "html": html,
         }
         response = resend.Emails.send(params)
@@ -175,7 +175,7 @@ async def send_test_email(to_email: str):
     DEBUG ONLY: Manually trigger a test email via Resend to diagnose delivery issues.
     """
     print(f"DEBUG: Manual test email trigger for {to_email}")
-    result = await asyncio.to_thread(send_reset_email_sync, to_email, "https://splitease.app/test-link")
+    result = await asyncio.to_thread(send_reset_email_sync, to_email, "https://tandem.app/test-link")
     
     if result["success"]:
         return {
