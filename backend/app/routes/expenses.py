@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from decimal import Decimal
 
 from app.database import get_db
 from app.models import User, Group, GroupMember, Expense, ExpenseParticipant, Notification
@@ -55,7 +57,7 @@ async def create_expense(
     await db.flush()
 
     # Split equally among participants
-    share = round(data.amount / len(data.participant_ids), 2)
+    share = (data.amount / Decimal(len(data.participant_ids))).quantize(Decimal("0.01"))
     participants = []
     for pid in data.participant_ids:
         ep = ExpenseParticipant(expense_id=expense.id, user_id=pid, share_amount=share)
@@ -186,7 +188,7 @@ async def update_expense(
         await db.delete(p)
     await db.flush()
 
-    share = round(data.amount / len(data.participant_ids), 2)
+    share = (data.amount / Decimal(len(data.participant_ids))).quantize(Decimal("0.01"))
     new_participants = []
     for pid in data.participant_ids:
         ep = ExpenseParticipant(expense_id=expense.id, user_id=pid, share_amount=share)

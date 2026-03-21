@@ -13,6 +13,18 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncSession:
+    """
+    Yields an async database session.
+
+    Transaction strategy:
+      - The session does NOT auto-commit. Routes are responsible for calling
+        `await db.flush()` to send changes to the DB within the transaction,
+        and the session commits when it closes successfully.
+      - On exception, the session rolls back automatically.
+
+    This gives payment-critical routes explicit control over their
+    transaction boundaries while keeping non-critical routes simple.
+    """
     async with async_session() as session:
         try:
             yield session

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import User, Group, GroupMember, SettlementRecord, Notification
 from app.schemas import SettlementRecordCreate, SettlementRecordOut, SettlementStatusUpdate
 from app.routes.auth import get_current_user
+from app.idempotency import idempotent
 
 router = APIRouter(prefix="/api/groups/{group_id}/settlement-records", tags=["settlement-records"])
 
@@ -59,9 +60,11 @@ def _create_notification(user_id: str, ntype: str, title: str, message: str, gro
 
 
 @router.post("", response_model=SettlementRecordOut)
+@idempotent
 async def create_settlement(
     group_id: str,
     data: SettlementRecordCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -136,10 +139,12 @@ async def list_settlements(
 
 
 @router.put("/{settlement_id}/status", response_model=SettlementRecordOut)
+@idempotent
 async def update_settlement_status(
     group_id: str,
     settlement_id: str,
     data: SettlementStatusUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

@@ -130,7 +130,7 @@ def send_reset_email_sync(to_email: str, reset_link: str):
     try:
         print(f"DEBUG: Attempting to send reset email to {to_email} via Resend API")
         params = {
-            "from": "SplitEase <onboarding@resend.dev>",
+            "from": "onboarding@resend.dev",
             "to": [to_email],
             "subject": "Reset your SplitEase Password",
             "html": html,

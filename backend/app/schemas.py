@@ -1,4 +1,6 @@
 from datetime import datetime
+from decimal import Decimal
+from pydantic import condecimal
 from pydantic import BaseModel, EmailStr
 
 
@@ -34,7 +36,7 @@ class UserOut(BaseModel):
     name: str
     email: str
     avatar_color: str
-    wallet_balance: float = 0.0
+    wallet_balance: Decimal = 0.0
     interac_email: str | None = None
     created_at: datetime
 
@@ -67,7 +69,7 @@ class GroupOut(BaseModel):
     created_by: str
     created_at: datetime
     members: list[GroupMemberOut] = []
-    total_expenses: float = 0
+    total_expenses: Decimal = 0
 
     class Config:
         from_attributes = True
@@ -79,7 +81,7 @@ class GroupListOut(BaseModel):
     created_by: str
     created_at: datetime
     member_count: int = 0
-    total_expenses: float = 0
+    total_expenses: Decimal = 0
 
     class Config:
         from_attributes = True
@@ -88,7 +90,7 @@ class GroupListOut(BaseModel):
 # --- Expenses ---
 class ExpenseCreate(BaseModel):
     title: str
-    amount: float
+    amount: Decimal
     paid_by: str
     participant_ids: list[str]
     split_type: str = "equal"
@@ -97,7 +99,7 @@ class ExpenseCreate(BaseModel):
 class ExpenseParticipantOut(BaseModel):
     user_id: str
     name: str
-    share_amount: float
+    share_amount: Decimal
     avatar_color: str = "#3ECF8E"
 
     class Config:
@@ -107,7 +109,7 @@ class ExpenseParticipantOut(BaseModel):
 class ExpenseOut(BaseModel):
     id: str
     title: str
-    amount: float
+    amount: Decimal
     paid_by: str
     payer_name: str = ""
     payer_avatar_color: str = "#3ECF8E"
@@ -124,9 +126,9 @@ class UserBalance(BaseModel):
     user_id: str
     name: str
     avatar_color: str
-    total_paid: float
-    total_owed: float
-    net_balance: float
+    total_paid: Decimal
+    total_owed: Decimal
+    net_balance: Decimal
 
 
 class Settlement(BaseModel):
@@ -138,13 +140,13 @@ class Settlement(BaseModel):
     to_user_name: str
     to_user_email: str
     to_avatar_color: str
-    amount: float
+    amount: Decimal
 
 
 # --- Settlement Records (actual payment tracking) ---
 class SettlementRecordCreate(BaseModel):
     payee_id: str
-    amount: float
+    amount: Decimal
     method: str = "etransfer"  # in_app | etransfer
 
 
@@ -159,7 +161,7 @@ class SettlementRecordOut(BaseModel):
     payee_name: str
     payee_email: str
     payee_avatar_color: str
-    amount: float
+    amount: Decimal
     method: str
     status: str
     created_at: datetime
@@ -230,7 +232,7 @@ class WalletTransactionOut(BaseModel):
     id: str
     user_id: str
     type: str
-    amount: float
+    amount: Decimal
     status: str
     reference_id: str | None = None
     created_at: datetime
@@ -242,7 +244,7 @@ class WalletTransactionOut(BaseModel):
 
 class PaymentRequestCreate(BaseModel):
     payer_id: str
-    amount: float
+    amount: Decimal
     note: str | None = None
     due_date: datetime | None = None
 
@@ -252,7 +254,7 @@ class PaymentRequestOut(BaseModel):
     group_id: str
     requester_id: str
     payer_id: str
-    amount: float
+    amount: Decimal
     note: str | None = None
     due_date: datetime | None = None
     status: str

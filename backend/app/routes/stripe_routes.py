@@ -1,6 +1,7 @@
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -8,6 +9,7 @@ from app.database import get_db
 from app.models import User, ProviderAccount, WalletTransaction, SettlementRecord
 from app.routes.auth import get_current_user
 from app.config import get_settings
+from app.idempotency import idempotent
 
 import plaid
 from plaid.api import plaid_api
@@ -30,7 +32,7 @@ api_client = plaid.ApiClient(configuration)
 plaid_client = plaid_api.PlaidApi(api_client)
 
 class PaymentIntentRequest(BaseModel):
-    amount: float
+    amount: Decimal
     payee_id: str
     provider_account_id: str
 
@@ -82,10 +84,12 @@ async def get_onboarding_status(
         return {"onboarded": False}
 
 @router.post("/create-payment-intent")
+@idempotent
 async def create_payment_intent(
     data: PaymentIntentRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Creates a PaymentIntent pulling from user's Plaid account to payee's Stripe account.
@@ -106,26 +110,37 @@ async def create_payment_intent(
     if not provider_account or not provider_account.access_token:
         raise HTTPException(status_code=400, detail="Invalid bank account selected.")
         
-    # 3. Exchange Plaid Access Token for Stripe Bank Account Token
+    # 3. Extract Idempotency-Key from FastAPI request before hitting external APIs
+    # This protects us against server crashes AFTER Stripe charges but BEFORE our DB commits.
+    stripe_idem_key = request.headers.get("Idempotency-Key") if request else None
+    if not stripe_idem_key:
+        print("WARNING: Missing Idempotency-Key for Stripe PaymentIntent. Duplicate charges are possible on network failure.")
+
+    # 4. Exchange Plaid Access Token for Stripe Bank Account Token
     try:
-        request = ProcessorStripeBankAccountTokenCreateRequest(
+        plaid_request = ProcessorStripeBankAccountTokenCreateRequest(
             access_token=provider_account.access_token,
             account_id=provider_account.account_id
         )
-        plaid_response = plaid_client.processor_stripe_bank_account_token_create(request)
+        plaid_response = plaid_client.processor_stripe_bank_account_token_create(plaid_request)
         bank_account_token = plaid_response['stripe_bank_account_token']
         
-        # 4. Create a Stripe Customer and attach the bank account
+        # 5. Create a Stripe Customer and attach the bank account
         customer = stripe.Customer.create(
             source=bank_account_token,
             email=current_user.email,
             description=current_user.name
         )
         
-        # 5. Create Payment Intent
+        # 6. Create Payment Intent
         # Stripe expects amounts in cents
-        amount_cents = int(data.amount * 100)
+        amount_cents = int(data.amount * Decimal("100"))
         
+        # Pass the client's idempotency key to Stripe for end-to-end protection
+        stripe_kwargs = {}
+        if stripe_idem_key:
+            stripe_kwargs["idempotency_key"] = stripe_idem_key
+
         intent = stripe.PaymentIntent.create(
             amount=amount_cents,
             currency="usd",
@@ -139,7 +154,8 @@ async def create_payment_intent(
                 "us_bank_account": {
                     "financial_connections": {"permissions": ["payment_method", "balances"]}
                 }
-            } if settings.PLAID_ENV != 'sandbox' else None
+            } if settings.PLAID_ENV != 'sandbox' else None,
+            **stripe_kwargs,
         )
         
         return {

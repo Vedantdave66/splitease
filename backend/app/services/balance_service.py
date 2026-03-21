@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from decimal import Decimal
 
 from app.database import get_db
 from app.models import User, Group, GroupMember, Expense, ExpenseParticipant
@@ -35,16 +36,16 @@ async def _compute_balances(group_id: str, db: AsyncSession) -> dict:
     expenses = result.scalars().all()
 
     # Track total paid and total owed per user
-    total_paid: dict[str, float] = {}
-    total_owed: dict[str, float] = {}
+    total_paid: dict[str, Decimal] = {}
+    total_owed: dict[str, Decimal] = {}
 
     for expense in expenses:
         # The payer paid the full amount
-        total_paid[expense.paid_by] = total_paid.get(expense.paid_by, 0) + expense.amount
+        total_paid[expense.paid_by] = total_paid.get(expense.paid_by, Decimal("0")) + expense.amount
 
         # Each participant owes their share
         for p in expense.participants:
-            total_owed[p.user_id] = total_owed.get(p.user_id, 0) + p.share_amount
+            total_owed[p.user_id] = total_owed.get(p.user_id, Decimal("0")) + p.share_amount
 
     return {"total_paid": total_paid, "total_owed": total_owed}
 
@@ -61,15 +62,15 @@ async def get_balances(
     balances = []
     for member in group.members:
         user = member.user
-        paid = data["total_paid"].get(user.id, 0)
-        owed = data["total_owed"].get(user.id, 0)
-        net = round(paid - owed, 2)
+        paid = data["total_paid"].get(user.id, Decimal("0"))
+        owed = data["total_owed"].get(user.id, Decimal("0"))
+        net = paid - owed
         balances.append(UserBalance(
             user_id=user.id,
             name=user.name,
             avatar_color=user.avatar_color,
-            total_paid=round(paid, 2),
-            total_owed=round(owed, 2),
+            total_paid=paid,
+            total_owed=owed,
             net_balance=net,
         ))
 
@@ -94,22 +95,22 @@ async def get_settlements(
         user_info[user.id] = {"name": user.name, "email": email_to_use, "avatar_color": user.avatar_color}
 
     # Compute net balances
-    net: dict[str, float] = {}
+    net: dict[str, Decimal] = {}
     all_user_ids = set(data["total_paid"].keys()) | set(data["total_owed"].keys())
     for uid in all_user_ids:
-        paid = data["total_paid"].get(uid, 0)
-        owed = data["total_owed"].get(uid, 0)
-        balance = round(paid - owed, 2)
-        if abs(balance) > 0.01:
+        paid = data["total_paid"].get(uid, Decimal("0"))
+        owed = data["total_owed"].get(uid, Decimal("0"))
+        balance = paid - owed
+        if abs(balance) > Decimal("0.01"):
             net[uid] = balance
 
     # Greedy debt simplification
     creditors = sorted(
-        [(uid, bal) for uid, bal in net.items() if bal > 0],
+        [(uid, bal) for uid, bal in net.items() if bal > Decimal("0")],
         key=lambda x: -x[1]
     )
     debtors = sorted(
-        [(uid, -bal) for uid, bal in net.items() if bal < 0],
+        [(uid, -bal) for uid, bal in net.items() if bal < Decimal("0")],
         key=lambda x: -x[1]
     )
 
@@ -119,8 +120,8 @@ async def get_settlements(
         creditor_id, credit = creditors[i]
         debtor_id, debt = debtors[j]
 
-        amount = round(min(credit, debt), 2)
-        if amount > 0.01:
+        amount = min(credit, debt)
+        if amount > Decimal("0.01"):
             c_info = user_info.get(creditor_id, {"name": "Unknown", "email": "", "avatar_color": "#3ECF8E"})
             d_info = user_info.get(debtor_id, {"name": "Unknown", "email": "", "avatar_color": "#3ECF8E"})
             settlements.append(Settlement(
@@ -137,11 +138,11 @@ async def get_settlements(
 
         credit -= amount
         debt -= amount
-        if credit < 0.01:
+        if credit < Decimal("0.01"):
             i += 1
         else:
             creditors[i] = (creditor_id, credit)
-        if debt < 0.01:
+        if debt < Decimal("0.01"):
             j += 1
         else:
             debtors[j] = (debtor_id, debt)

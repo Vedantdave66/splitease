@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Float, ForeignKey, DateTime, Boolean, func
+from sqlalchemy import String, Float, Numeric, ForeignKey, DateTime, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from decimal import Decimal
 from app.database import Base
 
 
@@ -14,7 +15,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_color: Mapped[str] = mapped_column(String(7), default="#3ECF8E")
-    wallet_balance: Mapped[float] = mapped_column(Float, default=0.0)
+    wallet_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), default=Decimal('0.00'))
     interac_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     stripe_account_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -54,7 +55,7 @@ class Expense(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     group_id: Mapped[str] = mapped_column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), nullable=False)
     paid_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     split_type: Mapped[str] = mapped_column(String(20), default="equal")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -69,7 +70,7 @@ class ExpenseParticipant(Base):
 
     expense_id: Mapped[str] = mapped_column(String, ForeignKey("expenses.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), primary_key=True)
-    share_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    share_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), nullable=False)
 
     expense: Mapped["Expense"] = relationship(back_populates="participants")
     user: Mapped["User"] = relationship()
@@ -84,7 +85,7 @@ class SettlementRecord(Base):
     group_id: Mapped[str] = mapped_column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
     payer_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     payee_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), nullable=False)
     method: Mapped[str] = mapped_column(String(20), default="etransfer")  # in_app | etransfer
     status: Mapped[str] = mapped_column(String(20), default="pending")    # pending | sent | settled | declined
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -155,8 +156,9 @@ class WalletTransaction(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False)  # deposit | withdrawal | transfer_in | transfer_out
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | processing | completed | failed | cancelled | reversed
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | completed | failed
+    reference_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # payment_request | deposit | withdrawal | settlement
     reference_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # link to a payment_request, provider_account, etc.
     stripe_payment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -173,7 +175,7 @@ class PaymentRequest(Base):
     group_id: Mapped[str] = mapped_column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
     requester_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     payer_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending | awaiting_payment | processing | settled | failed | cancelled
