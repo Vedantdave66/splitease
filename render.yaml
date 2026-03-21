@@ -21,6 +21,8 @@ services:
         value: 3.11.0
       - key: CORS_ORIGINS
         value: https://splitease-web.onrender.com
+      - key: FRONTEND_URL
+        value: https://splitease-web.onrender.com
 
   # --- Frontend Static Site ---
   - type: web
