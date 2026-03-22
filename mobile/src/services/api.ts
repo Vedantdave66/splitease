@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = "https://api.tandempay.ca";
+export const BASE_URL = "https://api.tandempay.ca/api";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = await AsyncStorage.getItem('token');
@@ -12,8 +12,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const cleanEndpoint = endpoint.replace(/^\/?(api\/)?/, '');
-    const res = await fetch(`${BASE_URL}/api/${cleanEndpoint}`, {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
         ...options,
         headers,
     });
