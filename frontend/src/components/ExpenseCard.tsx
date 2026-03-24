@@ -1,4 +1,5 @@
 import { Expense } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 import Avatar from './Avatar';
 import { Receipt, Edit2, Trash2 } from 'lucide-react';
 
@@ -45,7 +46,7 @@ export default function ExpenseCard({ expense, onEdit, onDelete }: ExpenseCardPr
                                 )}
                             </div>
                             <span className="text-base font-bold text-primary">
-                                ${expense.amount.toFixed(2)}
+                                ${formatCurrency(expense?.amount)}
                             </span>
                         </div>
                     </div>
@@ -75,7 +76,7 @@ export default function ExpenseCard({ expense, onEdit, onDelete }: ExpenseCardPr
                         <span className="text-xs text-secondary ml-2">+{expense.participants.length - 5}</span>
                     )}
                     <span className="text-xs text-secondary ml-auto">
-                        ${expense.participants[0]?.share_amount.toFixed(2)}/each
+                        ${formatCurrency(expense.participants[0]?.share_amount)}/each
                     </span>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { X } from 'lucide-react';
 import { GroupMember, expensesApi, Expense } from '../services/api';
 
@@ -74,7 +75,7 @@ export default function AddExpenseModal({
     };
 
     const splitAmount = selectedParticipants.length > 0
-        ? (parseFloat(amount || '0') / selectedParticipants.length).toFixed(2)
+        ? formatCurrency(parseFloat(amount || '0') / (selectedParticipants.length || 1))
         : '0.00';
 
     return (

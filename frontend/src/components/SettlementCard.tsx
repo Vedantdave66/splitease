@@ -1,4 +1,5 @@
 import { Settlement } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 import Avatar from './Avatar';
 import { ArrowRight } from 'lucide-react';
 
@@ -19,7 +20,7 @@ export default function SettlementCard({ settlement }: SettlementCardProps) {
                         <span className="font-semibold text-primary truncate">{settlement.to_user_name}</span>
                     </div>
                     <p className="text-xs text-secondary mt-0.5">
-                        pays <span className="text-accent font-bold">${settlement.amount.toFixed(2)}</span>
+                        pays <span className="text-accent font-bold">${formatCurrency(settlement?.amount)}</span>
                     </p>
                 </div>
 

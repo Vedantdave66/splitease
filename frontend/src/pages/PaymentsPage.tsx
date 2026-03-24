@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut, CheckCircle, ExternalLink } from 'lucide-react';
 import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, stripeApi, WalletTransaction, ProviderAccount } from '../services/api';
 import PaymentRecordCard from '../components/PaymentRecordCard';
@@ -50,7 +51,7 @@ export default function PaymentsPage() {
         }
 
         const account = bankAccounts[0]; // For MVP, withdraw to the first linked account
-        if (window.confirm(`Withdraw $${user.wallet_balance.toFixed(2)} to ${account.provider} (${account.account_mask})?`)) {
+        if (window.confirm(`Withdraw $${formatCurrency(user?.wallet_balance)} to ${account.provider} (${account.account_mask})?`)) {
             setWithdrawLoading(true);
             try {
                 await walletApi.withdraw({
@@ -107,7 +108,7 @@ export default function PaymentsPage() {
                     </div>
                     <div className="relative z-10">
                         <p className="text-sm font-medium text-secondary mb-1">Available Funds</p>
-                        <p className="text-4xl font-black text-primary tracking-tight mb-6">${(user?.wallet_balance || 0).toFixed(2)}</p>
+                        <p className="text-4xl font-black text-primary tracking-tight mb-6">${formatCurrency(user?.wallet_balance)}</p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setIsAddFundsOpen(true)}
@@ -292,7 +293,7 @@ export default function PaymentsPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className={`font-black text-lg ${t.tx_type === 'deposit' || t.tx_type === 'transfer_in' ? 'text-emerald-500' : 'text-primary'}`}>
-                                                {t.tx_type === 'deposit' || t.tx_type === 'transfer_in' ? '+' : '-'}${t.amount.toFixed(2)}
+                                                {t.tx_type === 'deposit' || t.tx_type === 'transfer_in' ? '+' : '-'}${formatCurrency(t?.amount)}
                                             </p>
                                             <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 block
                                                 ${t.status === 'completed' || t.status === 'settled' ? 'text-emerald-500/80' :

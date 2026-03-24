@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { X, Building2, CheckCircle2, ChevronRight, Wallet } from 'lucide-react';
 import { walletApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -134,7 +135,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }: AddFundsMo
                     {/* Bank Selection Step */}
                     {step === 'bank' && (
                         <div className="space-y-4 animate-in slide-in-from-right-4">
-                            <p className="text-sm text-secondary mb-4">Select a linked bank account to transfer ${parseFloat(amount).toFixed(2)}</p>
+                            <p className="text-sm text-secondary mb-4">Select a linked bank account to transfer ${formatCurrency(amount)}</p>
 
                             {/* RBC Mock Option */}
                             <button
@@ -201,7 +202,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }: AddFundsMo
                                 <div className="absolute inset-0 bg-accent/20 rounded-full animate-ping"></div>
                                 <CheckCircle2 className="w-10 h-10 text-accent relative z-10" />
                             </div>
-                            <h3 className="text-2xl font-black text-primary">${parseFloat(amount).toFixed(2)} Added!</h3>
+                            <h3 className="text-2xl font-black text-primary">${formatCurrency(amount)} Added!</h3>
                             <p className="text-secondary text-sm">Your Tandem wallet has been funded.</p>
                         </div>
                     )}

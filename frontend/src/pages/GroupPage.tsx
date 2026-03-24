@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -171,7 +172,7 @@ export default function GroupPage() {
     const handlePayRequest = async (request: PaymentRequestData) => {
         if (!user) return;
         if (user.wallet_balance < request.amount) {
-            alert(`Insufficient balance. You need $${request.amount.toFixed(2)} but only have $${user.wallet_balance.toFixed(2)} in your wallet. Please add funds from the Payments tab on the dashboard.`);
+            alert(`Insufficient balance. You need $${formatCurrency(request?.amount)} but only have $${formatCurrency(user?.wallet_balance)} in your wallet. Please add funds from the Payments tab on the dashboard.`);
             return;
         }
 
@@ -265,7 +266,7 @@ export default function GroupPage() {
                             </button>
                         </div>
                         <p className="text-sm text-secondary">
-                            {group.members.length} member{group.members.length !== 1 ? 's' : ''} · ${totalSpent.toFixed(2)} total
+                            {group.members.length} member{group.members.length !== 1 ? 's' : ''} · ${formatCurrency(totalSpent)} total
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
@@ -341,7 +342,7 @@ export default function GroupPage() {
                                             <span className="text-sm text-white/70">{s.to_user_name}</span>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="text-base font-black text-white">${s.amount.toFixed(2)}</span>
+                                            <span className="text-base font-black text-white">${formatCurrency(s?.amount)}</span>
                                             <button
                                                 onClick={() => {
                                                     setSettleUpTarget(s);
@@ -469,7 +470,7 @@ export default function GroupPage() {
                                                 <Avatar name={req.requester_name || 'User'} color={req.requester_avatar || '#fff'} size="md" />
                                                 <div>
                                                     <p className="text-sm font-medium text-primary">
-                                                        <span className="font-bold">{req.requester_name}</span> requested <span className="text-indigo font-bold">${req.amount.toFixed(2)}</span>
+                                                        <span className="font-bold">{req.requester_name}</span> requested <span className="text-indigo font-bold">${formatCurrency(req?.amount)}</span>
                                                     </p>
                                                     {req.note && <p className="text-xs text-secondary mt-0.5">"{req.note}"</p>}
                                                 </div>
@@ -524,7 +525,7 @@ export default function GroupPage() {
                                                             <span className="font-semibold text-primary truncate">{s.to_user_name}</span>
                                                         </div>
                                                         <p className="text-xs text-secondary mt-0.5">
-                                                            owes <span className="text-accent font-bold">${s.amount.toFixed(2)}</span>
+                                                            owes <span className="text-accent font-bold">${formatCurrency(s?.amount)}</span>
                                                         </p>
                                                     </div>
                                                     <Avatar name={s.to_user_name} color={s.to_avatar_color} size="md" />
@@ -536,7 +537,7 @@ export default function GroupPage() {
                                                         className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
                                                     >
                                                         <Handshake className="w-4 h-4" />
-                                                        Pay {s.amount.toFixed(2)}
+                                                        Pay {formatCurrency(s?.amount)}
                                                     </button>
                                                 )}
                                             </div>

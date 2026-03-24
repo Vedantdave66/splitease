@@ -1,4 +1,5 @@
 import { SettlementRecord, settlementRecordsApi } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 import Avatar from './Avatar';
 import PaymentStatusBadge from './PaymentStatusBadge';
 import { ArrowRight, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -55,7 +56,7 @@ export default function PaymentRecordCard({ record, currentUserId, groupId, onUp
                     </p>
                 </div>
                 <p className="text-xl font-black text-primary tracking-tight">
-                    ${record.amount.toFixed(2)}
+                    ${formatCurrency(record?.amount)}
                 </p>
             </div>
 

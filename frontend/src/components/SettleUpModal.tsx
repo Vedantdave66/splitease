@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatCurrency } from '../utils/currency';
 import { X, Send, Building2, CreditCard, Copy, CheckCircle2, ArrowRight, Loader2, Shield, Landmark, Wallet, Plus } from 'lucide-react';
 import { Settlement, settlementRecordsApi, walletApi, bankLinksApi, stripeApi, ProviderAccount } from '../services/api';
 import Avatar from './Avatar';
@@ -165,7 +166,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                 </div>
                                 <p className="text-sm text-secondary mb-1">Amount to settle</p>
                                 <p className="text-4xl font-black text-primary tracking-tight">
-                                    ${settlement.amount.toFixed(2)}
+                                    ${formatCurrency(settlement?.amount)}
                                 </p>
                                 <p className="text-sm text-secondary mt-2">
                                     {settlement.from_user_name} → {settlement.to_user_name}
@@ -268,7 +269,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
 
                                 <div className="border-t border-white/5 pt-4 text-center">
                                     <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Amount</p>
-                                    <p className="text-3xl font-black text-white">${settlement.amount.toFixed(2)}</p>
+                                    <p className="text-3xl font-black text-white">${formatCurrency(settlement?.amount)}</p>
                                 </div>
 
                                 <div className="border-t border-white/5 pt-4 space-y-2">
@@ -291,7 +292,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                 onClick={handleInAppConfirm}
                                 className="w-full bg-gradient-to-r from-accent to-emerald-500 text-[#064E3B] font-bold py-3.5 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/20 hover:shadow-accent/30 hover:from-accent-hover hover:to-emerald-600"
                             >
-                                Confirm & Send ${settlement.amount.toFixed(2)}
+                                Confirm & Send ${formatCurrency(settlement?.amount)}
                             </button>
                         </div>
                     )}
@@ -326,7 +327,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                             <div>
                                 <h3 className="text-xl font-black text-white mb-1">Payment Sent!</h3>
                                 <p className="text-sm text-white/40">
-                                    ${settlement.amount.toFixed(2)} sent to {recipientName}
+                                    ${formatCurrency(settlement?.amount)} sent to {recipientName}
                                 </p>
                             </div>
                             <button
@@ -368,7 +369,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                     <div className="flex items-center justify-between bg-bg rounded-xl px-4 py-3 border border-border">
                                         <div>
                                             <p className="text-[10px] text-secondary uppercase tracking-widest mb-0.5">Amount</p>
-                                            <p className="text-lg font-black text-accent">${settlement.amount.toFixed(2)}</p>
+                                            <p className="text-lg font-black text-accent">${formatCurrency(settlement?.amount)}</p>
                                         </div>
                                     </div>
                                 </div>
