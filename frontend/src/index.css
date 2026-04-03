@@ -21,24 +21,7 @@
 }
 
 :root {
-  /* Dark Mode (Default) */
-  --color-bg-base: #09090B;
-  --color-surface-base: #111318;
-  --color-surface-hover-base: #1A1D27;
-  --color-surface-light-base: #151821;
-  --color-border-base: #1E2230;
-  --color-primary-base: #F5F7FA;
-  --color-secondary-base: #A1A1AA;
-  --color-accent-base: #4ADE80;
-  --color-accent-hover-base: #22C55E;
-  --color-indigo-base: #818CF8;
-  --color-danger-base: #EF4444;
-  --color-warning-base: #F59E0B;
-  --color-gold-base: #D4A853;
-}
-
-:root[data-theme="light"] {
-  /* Light Mode */
+  /* Light Mode (Default) */
   --color-bg-base: #F1F5F9;
   --color-surface-base: #FFFFFF;
   --color-surface-hover-base: #F8FAFC;
@@ -50,6 +33,23 @@
   --color-accent-hover-base: #15803D;
   --color-indigo-base: #4F46E5;
   --color-danger-base: #DC2626;
+  --color-warning-base: #F59E0B;
+  --color-gold-base: #D4A853;
+}
+
+:root[data-theme="dark"] {
+  /* Dark Mode */
+  --color-bg-base: #09090B;
+  --color-surface-base: #111318;
+  --color-surface-hover-base: #1A1D27;
+  --color-surface-light-base: #151821;
+  --color-border-base: #1E2230;
+  --color-primary-base: #F5F7FA;
+  --color-secondary-base: #A1A1AA;
+  --color-accent-base: #4ADE80;
+  --color-accent-hover-base: #22C55E;
+  --color-indigo-base: #818CF8;
+  --color-danger-base: #EF4444;
   --color-warning-base: #F59E0B;
   --color-gold-base: #D4A853;
 }
