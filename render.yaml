@@ -20,9 +20,15 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: CORS_ORIGINS
-        value: https://splitease-web.onrender.com
+        value: https://tandempay.ca,https://www.tandempay.ca
       - key: FRONTEND_URL
-        value: https://splitease-web.onrender.com
+        value: https://tandempay.ca
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: noreply@tandempay.ca
+      - key: ADMIN_SECRET
+        sync: false
 
   # --- Frontend Static Site ---
   - type: web

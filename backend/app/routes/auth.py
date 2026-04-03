@@ -1,7 +1,7 @@
 import random
 import bcrypt
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jose import jwt, JWTError
@@ -28,7 +28,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception as e:
+        print(f"DEBUG: bcrypt.checkpw raised an exception: {e}")
+        print(f"DEBUG: Hash prefix: {hashed[:10]}... (len={len(hashed)})")
+        return False
 
 
 def create_access_token(data: dict) -> str:
@@ -87,10 +92,24 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     email_lower = data.email.lower()
     result = await db.execute(select(User).where(User.email == email_lower))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(data.password, user.hashed_password):
+    
+    if not user:
+        print(f"DEBUG: Login failed — no user found for email: {email_lower}")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Debug: check the hash format to detect corruption
+    hash_str = user.hashed_password
+    is_valid_bcrypt = hash_str and hash_str.startswith("$2") and len(hash_str) >= 59
+    if not is_valid_bcrypt:
+        print(f"DEBUG: Login failed — CORRUPTED hash for {email_lower}: prefix='{hash_str[:20] if hash_str else 'NULL'}', len={len(hash_str) if hash_str else 0}")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    if not verify_password(data.password, hash_str):
+        print(f"DEBUG: Login failed — bcrypt verification failed for {email_lower} (hash looks valid, password mismatch)")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token({"sub": user.id})
+    print(f"DEBUG: Login success for {email_lower}")
     return Token(access_token=token)
 
 
@@ -132,13 +151,14 @@ def send_reset_email_sync(to_email: str, reset_link: str) -> dict:
     </html>
     """
 
-    # Use the configured 'from' email from settings, defaulting to onboarding@resend.dev
-    from_email = settings.RESEND_FROM_EMAIL
+    import os
+    FROM_NAME = "Tandem"
+    FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "noreply@send.tandempay.ca")
     
     try:
-        print(f"DEBUG: [RESEND] Attempting send: from={from_email}, to={to_email}, subject='Reset your Tandem Password'")
+        print(f"DEBUG: [RESEND] Attempting send: from={FROM_EMAIL}, to={to_email}, subject='Reset your Tandem Password'")
         params = {
-            "from": from_email,
+            "from": f"{FROM_NAME} <{FROM_EMAIL}>",
             "to": [to_email],
             "subject": "Reset your Tandem Password",
             "html": html,
@@ -162,9 +182,9 @@ def send_reset_email_sync(to_email: str, reset_link: str) -> dict:
         # PROVIDE CLEARER CONTEXT FOR 403 FORBIDDEN
         if "403" in error_msg:
             print("IMPORTANT: Resend returned 403 Forbidden. This typically means:")
-            print(f"1. You are in Sandbox mode and trying to send to a non-owner email ({to_email}).")
-            print(f"2. Your 'from' address ({from_email}) is not from a verified domain.")
-            print("3. Your API Key is invalid or restricted.")
+            print(f"1. Your 'from' address ({FROM_EMAIL}) is not from a verified domain.")
+            print("2. Your API Key is invalid or restricted.")
+            print(f"3. Ensure 'tandempay.ca' is verified in the Resend dashboard.")
 
         return {"success": False, "response": None, "error": error_msg}
 
@@ -175,7 +195,7 @@ async def send_test_email(to_email: str):
     DEBUG ONLY: Manually trigger a test email via Resend to diagnose delivery issues.
     """
     print(f"DEBUG: Manual test email trigger for {to_email}")
-    result = await asyncio.to_thread(send_reset_email_sync, to_email, "https://tandem.app/test-link")
+    result = await asyncio.to_thread(send_reset_email_sync, to_email, "https://tandempay.ca/test-link")
     
     if result["success"]:
         return {
@@ -208,17 +228,11 @@ async def forgot_password(data: PasswordResetRequest, db: AsyncSession = Depends
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
         print(f"DEBUG: Password reset link generated for {user.email}: {reset_link}")
         
-        # Dispatch the email and AWAIT the result to ensure we catch API errors
-        # Note: In production we might still return a generic success message,
-        # but for debugging we need to know if the CALL itself failed.
+        # Dispatch the email
         result = await asyncio.to_thread(send_reset_email_sync, user.email, reset_link)
         
         if not result["success"]:
-            # If the CALL failed (e.g. invalid API key or domain), we should know
             print(f"ERROR: Failed to dispatch reset email to {user.email}: {result['error']}")
-            # For debugging purposes, we'll raise an error here. 
-            # In pure production, you might still want to return 200 to prevent enumeration,
-            # but right now we are DEBUGGING why emails aren't arriving.
             raise HTTPException(
                 status_code=500, 
                 detail=f"Email delivery service failure: {result['error']}"
@@ -226,7 +240,7 @@ async def forgot_password(data: PasswordResetRequest, db: AsyncSession = Depends
     else:
         print(f"DEBUG: Password reset requested for non-existent email: {email_lower}")
     
-    # Always return success if we got this far to prevent email enumeration
+    # Always return success to prevent email enumeration
     return {"message": "If an account with that email exists, we have sent a password reset link."}
 
 
@@ -259,3 +273,108 @@ async def reset_password(data: PasswordResetConfirm, db: AsyncSession = Depends(
     await db.commit()
     
     return {"message": "Password successfully reset"}
+
+
+# ─── Admin: Mass Password Reset ─────────────────────────────────────────────────
+
+@router.post("/admin/reset-all-passwords")
+async def admin_reset_all_passwords(
+    db: AsyncSession = Depends(get_db),
+    x_admin_secret: str = Header(..., alias="X-Admin-Secret"),
+):
+    """
+    Admin-only endpoint: sends a password reset email to every user in the database.
+    Protected by the X-Admin-Secret header.
+    
+    Usage:
+        curl -X POST https://api.tandempay.ca/api/auth/admin/reset-all-passwords \
+             -H "X-Admin-Secret: <your-admin-secret>"
+    """
+    if x_admin_secret != settings.ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+    
+    # Fetch all users
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    if not users:
+        return {"message": "No users found", "total": 0, "sent": 0, "failed": 0}
+    
+    sent = 0
+    failed = 0
+    failures = []
+    
+    for user in users:
+        try:
+            # Generate a longer-lived reset token (24 hours) for mass reset
+            expire = datetime.now(timezone.utc) + timedelta(hours=24)
+            to_encode = {"sub": user.id, "type": "password_reset", "exp": expire}
+            reset_token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+            
+            reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+            print(f"DEBUG: [MASS RESET] Sending reset to {user.email}: {reset_link}")
+            
+            email_result = await asyncio.to_thread(send_reset_email_sync, user.email, reset_link)
+            
+            if email_result["success"]:
+                sent += 1
+                print(f"DEBUG: [MASS RESET] ✓ Sent to {user.email}")
+            else:
+                failed += 1
+                failures.append({"email": user.email, "error": email_result["error"]})
+                print(f"DEBUG: [MASS RESET] ✗ Failed for {user.email}: {email_result['error']}")
+            
+            # Rate limit: small delay between sends to avoid hitting Resend limits
+            await asyncio.sleep(0.5)
+            
+        except Exception as e:
+            failed += 1
+            failures.append({"email": user.email, "error": str(e)})
+            print(f"DEBUG: [MASS RESET] ✗ Exception for {user.email}: {e}")
+    
+    return {
+        "message": f"Mass password reset complete",
+        "total": len(users),
+        "sent": sent,
+        "failed": failed,
+        "failures": failures,
+    }
+
+
+@router.post("/admin/diagnose-hashes")
+async def admin_diagnose_hashes(
+    db: AsyncSession = Depends(get_db),
+    x_admin_secret: str = Header(..., alias="X-Admin-Secret"),
+):
+    """
+    Admin-only endpoint: checks the integrity of all password hashes in the database.
+    Returns a diagnostic report without exposing any sensitive data.
+    """
+    if x_admin_secret != settings.ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+    
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    report = []
+    for user in users:
+        h = user.hashed_password
+        entry = {
+            "email": user.email,
+            "hash_length": len(h) if h else 0,
+            "starts_with_$2": h.startswith("$2") if h else False,
+            "looks_valid": bool(h and h.startswith("$2") and len(h) >= 59),
+        }
+        if h:
+            # Show just the algorithm prefix (e.g. $2b$12$) without the actual hash
+            entry["hash_prefix"] = h[:7] if len(h) >= 7 else h
+        report.append(entry)
+    
+    valid_count = sum(1 for r in report if r["looks_valid"])
+    
+    return {
+        "total_users": len(users),
+        "valid_hashes": valid_count,
+        "corrupted_hashes": len(users) - valid_count,
+        "details": report,
+    }

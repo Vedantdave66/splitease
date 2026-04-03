@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     RESEND_API_KEY: str = ""
-    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+    RESEND_FROM_EMAIL: str = "noreply@send.tandempay.ca"
     FRONTEND_URL: str = "http://localhost:5173"
 
     # Plaid Configuration
@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Stripe Configuration
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
+
+    # Admin
+    ADMIN_SECRET: str = "tandem-admin-reset-2026"
 
     class Config:
         env_file = ".env"
