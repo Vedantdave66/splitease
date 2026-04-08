@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # Stripe Configuration
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
 
     # Admin
     ADMIN_SECRET: str = "tandem-admin-reset-2026"
