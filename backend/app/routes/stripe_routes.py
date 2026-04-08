@@ -104,7 +104,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         if event.type == 'payment_intent.succeeded':
             intent = event.data.object
             metadata = getattr(intent, 'metadata', {})
-            payment_id = metadata.get("payment_id") if metadata else None
+            payment_id = getattr(metadata, "payment_id", None) if metadata else None
             
             result = await db.execute(select(Payment).where(Payment.id == payment_id))
             payment = result.scalars().first()
@@ -129,7 +129,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         elif event.type == 'payment_intent.payment_failed':
             intent = event.data.object
             metadata = getattr(intent, 'metadata', {})
-            payment_id = metadata.get("payment_id") if metadata else None
+            payment_id = getattr(metadata, "payment_id", None) if metadata else None
             
             result = await db.execute(select(Payment).where(Payment.id == payment_id))
             payment = result.scalars().first()
