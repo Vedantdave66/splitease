@@ -3,7 +3,6 @@ import { formatCurrency } from '../utils/currency';
 import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut, CheckCircle, ExternalLink } from 'lucide-react';
 import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, stripeApi, WalletTransaction, ProviderAccount } from '../services/api';
 import PaymentRecordCard from '../components/PaymentRecordCard';
-import AddFundsModal from '../components/AddFundsModal';
 import LinkBankModal from '../components/LinkBankModal';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,9 +12,7 @@ export default function PaymentsPage() {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [bankAccounts, setBankAccounts] = useState<ProviderAccount[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
     const [isLinkBankOpen, setIsLinkBankOpen] = useState(false);
-    const [withdrawLoading, setWithdrawLoading] = useState(false);
     const [stripeOnboarded, setStripeOnboarded] = useState(false);
     const [stripeLoading, setStripeLoading] = useState(false);
     const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
@@ -41,30 +38,6 @@ export default function PaymentsPage() {
             console.error(err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleWithdraw = async () => {
-        if (!user || user.wallet_balance <= 0) return;
-        if (bankAccounts.length === 0) {
-            alert("Please link a bank account to withdraw funds.");
-            return;
-        }
-
-        const account = bankAccounts[0]; // For MVP, withdraw to the first linked account
-        if (window.confirm(`Withdraw $${formatCurrency(user?.wallet_balance)} to ${account.provider} (${account.account_mask})?`)) {
-            setWithdrawLoading(true);
-            try {
-                await walletApi.withdraw({
-                    destination_account: account.id
-                });
-                await refetchUser();
-                await loadAll();
-            } catch (err: any) {
-                alert(err.message || 'Failed to withdraw');
-            } finally {
-                setWithdrawLoading(false);
-            }
         }
     };
 
@@ -99,35 +72,7 @@ export default function PaymentsPage() {
 
             {/* Wallet Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                <div className="bg-gradient-to-br from-indigo/20 to-surface-light border border-indigo/20 rounded-3xl p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
-                    <div className="flex items-center gap-3 mb-6 relative z-10">
-                        <div className="w-10 h-10 bg-indigo/20 rounded-xl flex items-center justify-center border border-indigo/30">
-                            <Wallet className="w-5 h-5 text-indigo" />
-                        </div>
-                        <h3 className="text-lg font-bold text-primary">Tandem Balance</h3>
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-sm font-medium text-secondary mb-1">Available Funds</p>
-                        <p className="text-4xl font-black text-primary tracking-tight mb-6">${formatCurrency(user?.wallet_balance)}</p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsAddFundsOpen(true)}
-                                className="flex-1 bg-surface-light border-border text-primary hover:bg-border font-semibold py-2.5 rounded-xl transition-colors text-sm border cursor-pointer"
-                            >
-                                Add Funds
-                            </button>
-                            <button
-                                onClick={handleWithdraw}
-                                disabled={withdrawLoading || !user || user.wallet_balance <= 0}
-                                className="flex-1 bg-indigo hover:bg-indigo-hover text-white font-semibold py-2.5 rounded-xl transition-colors text-sm shadow-lg shadow-indigo/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {withdrawLoading ? 'Processing...' : 'Withdraw'}
-                            </button>
-                        </div>
-                        <p className="text-xs text-secondary mt-3 text-center">Powered by Tandem Ledger</p>
-                    </div>
-                </div>
+
 
                 {bankAccounts.length === 0 ? (
                     <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-center items-center text-center">
@@ -314,14 +259,6 @@ export default function PaymentsPage() {
                 </div>
             )}
 
-            <AddFundsModal
-                isOpen={isAddFundsOpen}
-                onClose={() => setIsAddFundsOpen(false)}
-                onSuccess={() => {
-                    refetchUser();
-                    loadAll();
-                }}
-            />
 
             <LinkBankModal
                 isOpen={isLinkBankOpen}
