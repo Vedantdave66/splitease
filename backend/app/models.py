@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Float, Numeric, ForeignKey, DateTime, Boolean, func
+from sqlalchemy import String, Float, Numeric, ForeignKey, DateTime, Boolean, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
 from app.database import Base
@@ -202,3 +202,22 @@ class PaymentRequest(Base):
     group: Mapped["Group"] = relationship()
     requester: Mapped["User"] = relationship(foreign_keys=[requester_id])
     payer: Mapped["User"] = relationship(foreign_keys=[payer_id])
+
+
+class Payment(Base):
+    """Core transaction tracker representing a real Stripe PaymentIntent."""
+    __tablename__ = "payments"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    payer_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    payee_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False) # cents
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, processing, succeeded, failed
+    settlement_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("settlement_records.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    payer: Mapped["User"] = relationship(foreign_keys=[payer_id])
+    payee: Mapped["User"] = relationship(foreign_keys=[payee_id])
+    settlement: Mapped["SettlementRecord"] = relationship(foreign_keys=[settlement_id])

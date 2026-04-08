@@ -83,121 +83,59 @@ async def get_onboarding_status(
     except Exception as e:
         return {"onboarded": False}
 
-@router.post("/create-payment-intent")
-@idempotent
-async def create_payment_intent(
-    data: PaymentIntentRequest,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Creates a PaymentIntent pulling from user's Plaid account to payee's Stripe account.
-    """
-    # 1. Look up Payee to get their Stripe Account ID
-    result = await db.execute(select(User).filter(User.id == data.payee_id))
-    payee = result.scalars().first()
-    
-    if not payee or not payee.stripe_account_id:
-        raise HTTPException(status_code=400, detail="Payee has not set up their Stripe account to receive funds.")
-        
-    # 2. Look up Payer's selected ProviderAccount (Plaid)
-    result = await db.execute(
-        select(ProviderAccount).filter(ProviderAccount.id == data.provider_account_id, ProviderAccount.user_id == current_user.id)
-    )
-    provider_account = result.scalars().first()
-    
-    if not provider_account or not provider_account.access_token:
-        raise HTTPException(status_code=400, detail="Invalid bank account selected.")
-        
-    # 3. Extract Idempotency-Key from FastAPI request before hitting external APIs
-    # This protects us against server crashes AFTER Stripe charges but BEFORE our DB commits.
-    stripe_idem_key = request.headers.get("Idempotency-Key") if request else None
-    if not stripe_idem_key:
-        print("WARNING: Missing Idempotency-Key for Stripe PaymentIntent. Duplicate charges are possible on network failure.")
 
-    # 4. Exchange Plaid Access Token for Stripe Bank Account Token
-    try:
-        plaid_request = ProcessorStripeBankAccountTokenCreateRequest(
-            access_token=provider_account.access_token,
-            account_id=provider_account.account_id
-        )
-        plaid_response = plaid_client.processor_stripe_bank_account_token_create(plaid_request)
-        bank_account_token = plaid_response['stripe_bank_account_token']
-        
-        # 5. Create a Stripe Customer and attach the bank account
-        customer = stripe.Customer.create(
-            source=bank_account_token,
-            email=current_user.email,
-            description=current_user.name
-        )
-        
-        # 6. Create Payment Intent
-        # Stripe expects amounts in cents
-        amount_cents = int(data.amount * Decimal("100"))
-        
-        # Pass the client's idempotency key to Stripe for end-to-end protection
-        stripe_kwargs = {}
-        if stripe_idem_key:
-            stripe_kwargs["idempotency_key"] = stripe_idem_key
-
-        intent = stripe.PaymentIntent.create(
-            amount=amount_cents,
-            currency="usd",
-            customer=customer.id,
-            payment_method_types=["us_bank_account"],
-            transfer_data={
-                "destination": payee.stripe_account_id,
-            },
-            # Verify micro-deposits automatically for sandbox
-            payment_method_options={
-                "us_bank_account": {
-                    "financial_connections": {"permissions": ["payment_method", "balances"]}
-                }
-            } if settings.PLAID_ENV != 'sandbox' else None,
-            **stripe_kwargs,
-        )
-        
-        return {
-            "client_secret": intent.client_secret,
-            "status": intent.status
-        }
-    except Exception as e:
-        print("Stripe/Plaid Integration Error:", str(e))
-        raise HTTPException(status_code=400, detail="Failed to initiate secure bank transfer.")
+from app.models import Payment
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("Stripe-Signature", "")
-    endpoint_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", None)
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
     
-    event = None
     try:
-        if endpoint_secret:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, endpoint_secret
-            )
-        else:
-            # If no webhook secret is configured (e.g. local dev without ngrok)
-            # just parse the JSON normally. WARNING: Not secure for production!
-            import json
-            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
-    except ValueError as e:
-        # Invalid payload
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
+    except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # Handle the event
     if event.type == 'payment_intent.succeeded':
-        payment_intent = event.data.object
-        print(f"PaymentIntent for {payment_intent.amount} was successful!")
-        # Typically we'd find the SettlementRecord and mark it Complete here.
+        intent = event.data.object
+        payment_id = intent.metadata.get("payment_id")
+        
+        result = await db.execute(select(Payment).where(Payment.id == payment_id))
+        payment = result.scalars().first()
+        
+        # Requirement 2: Webhook safely ignores duplicate or repeated events
+        if payment and payment.status == "succeeded":
+            return {"status": "success", "message": "Already succeeded"}
+
+        if payment and payment.status != "succeeded":
+            payment.status = "succeeded"
+            
+            # Settlement tracking integration (NO WALLET LOGIC)
+            if payment.settlement_id and payment.settlement_id != "none":
+                settlement_res = await db.execute(select(SettlementRecord).where(SettlementRecord.id == payment.settlement_id))
+                settlement = settlement_res.scalars().first()
+                if settlement:
+                    settlement.status = "settled"
+
+            # Execute explicit database commit tracking status only
+            await db.commit()
 
     elif event.type == 'payment_intent.payment_failed':
-        payment_intent = event.data.object
-        print(f"PaymentIntent failed: {payment_intent.last_payment_error.message}")
+        intent = event.data.object
+        payment_id = intent.metadata.get("payment_id")
+        
+        result = await db.execute(select(Payment).where(Payment.id == payment_id))
+        payment = result.scalars().first()
+        
+        # Requirement 2: Handle failed duplicate events identically
+        if payment and payment.status == "failed":
+            return {"status": "success", "message": "Already failed"}
+            
+        if payment and payment.status not in ["succeeded", "failed"]:
+            payment.status = "failed"
+            await db.commit()
 
     return {"status": "success"}

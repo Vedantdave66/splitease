@@ -1,34 +1,26 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import RootNavigator from './src/navigation/RootNavigator';
 
-export default function App() {
+function ConnectedApp() {
+  const { isDark } = useTheme();
+  
   return (
-    <SafeAreaView style={styles.container}>
-      {/* We use a dark status bar to fade into the web app's dark mode background */}
-      <StatusBar style="light" backgroundColor="#09090B" />
-      <WebView
-        source={{ uri: 'https://splitease-web.onrender.com/' }}
-        style={styles.webview}
-        // These props help the webview feel more like a native app
-        bounces={false}
-        allowsBackForwardNavigationGestures={true}
-        pullToRefreshEnabled={true}
-      />
-    </SafeAreaView>
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <RootNavigator />
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#09090B',
-    // Ensure the webview doesn't overlap the Android/iOS status bar
-    paddingTop: Platform.OS === "android" ? RNStatusBar.currentHeight : 0,
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: '#09090B',
-  },
-});
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <ConnectedApp />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}

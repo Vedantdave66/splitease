@@ -1,45 +1,57 @@
 import React from 'react';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
+import MainTabNavigator from './MainTabNavigator';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-import DashboardScreen from '../screens/DashboardScreen';
-// import GroupScreen from '../screens/GroupScreen'; // Will add later
+import GroupDetailScreen from '../screens/GroupDetailScreen';
+import LandingScreen from '../screens/LandingScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
     const { user, loading } = useAuth();
+    const { theme, colors, isDark } = useTheme();
 
     if (loading) {
         return null; // Or a splash screen
     }
 
-    const MyTheme = {
-        ...DarkTheme,
+    const navigationTheme = {
+        ...(isDark ? DarkTheme : DefaultTheme),
         colors: {
-            ...DarkTheme.colors,
-            background: '#09090B',
-            text: '#F5F7FA',
+            ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+            background: colors.background,
+            card: colors.surface,
+            text: colors.text,
+            border: colors.border,
+            notification: colors.accent,
         },
     };
 
     return (
-        <NavigationContainer theme={MyTheme}>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <NavigationContainer theme={navigationTheme}>
+            <Stack.Navigator 
+                screenOptions={{ 
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background }
+                }}
+            >
                 {!user ? (
                     // Unauthenticated Stack
                     <Stack.Group>
+                        <Stack.Screen name="Landing" component={LandingScreen} />
                         <Stack.Screen name="Login" component={LoginScreen} />
                         <Stack.Screen name="Register" component={RegisterScreen} />
                     </Stack.Group>
                 ) : (
                     // Authenticated Stack
                     <Stack.Group>
-                        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-                        {/* <Stack.Screen name="Group" component={GroupScreen} /> */}
+                        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+                        <Stack.Screen name="Group" component={GroupDetailScreen} />
                     </Stack.Group>
                 )}
             </Stack.Navigator>

@@ -43,6 +43,7 @@ import PaymentRecordCard from '../components/PaymentRecordCard';
 import PaymentStatusBadge from '../components/PaymentStatusBadge';
 import Avatar from '../components/Avatar';
 import RequestMoneyModal from '../components/RequestMoneyModal';
+import StripePaymentModal from '../components/StripePaymentModal';
 
 type Tab = 'expenses' | 'balances' | 'settlements' | 'payments';
 
@@ -77,6 +78,9 @@ export default function GroupPage() {
     // Settle Up modal state
     const [settleUpTarget, setSettleUpTarget] = useState<Settlement | null>(null);
     const [showRequestMoney, setShowRequestMoney] = useState(false);
+
+    // Stripe Payment Modal state
+    const [stripeStripeTarget, setStripePaymentTarget] = useState<{payeeId: string, amount: number, settlementId?: string} | null>(null);
 
     useEffect(() => {
         if (groupId) loadAll();
@@ -225,23 +229,10 @@ export default function GroupPage() {
     };
 
     const handlePayRequest = async (request: PaymentRequestData) => {
-        if (!user) return;
-        if (user.wallet_balance < request.amount) {
-            alert(`Insufficient balance. You need $${formatCurrency(request?.amount)} but only have $${formatCurrency(user?.wallet_balance)} in your wallet. Please add funds from the Payments tab on the dashboard.`);
-            return;
-        }
-
-        try {
-            setPayingRequestId(request.id);
-            await requestsApi.payWithWallet(request.id);
-            // Optimistically update local user balance
-            setUser({ ...user, wallet_balance: user.wallet_balance - request.amount });
-            await loadAll();
-        } catch (err: any) {
-            alert(err.message || 'Failed to pay request');
-        } finally {
-            setPayingRequestId(null);
-        }
+        setStripePaymentTarget({
+            payeeId: request.requester_id,
+            amount: request.amount,
+        });
     };
 
     const totalSpent = (expenses || []).reduce((s, e) => s + e.amount, 0);
@@ -653,7 +644,7 @@ export default function GroupPage() {
 
                                                 {canSettle && (
                                                     <button
-                                                        onClick={() => setSettleUpTarget(s)}
+                                                        onClick={() => setStripePaymentTarget({ payeeId: s.to_user_id, amount: s.amount })}
                                                         className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
                                                     >
                                                         <Handshake className="w-4 h-4" />
@@ -745,6 +736,20 @@ export default function GroupPage() {
                     currentUserId={user.id}
                     onClose={() => setShowRequestMoney(false)}
                     onSuccess={loadAll}
+                />
+            )}
+
+            {/* Strict Stripe Overlay */}
+            {stripeStripeTarget && (
+                <StripePaymentModal
+                    payeeId={stripeStripeTarget.payeeId}
+                    amount={stripeStripeTarget.amount}
+                    settlementId={stripeStripeTarget.settlementId}
+                    onClose={() => setStripePaymentTarget(null)}
+                    onSuccess={() => {
+                        loadAll();
+                        setStripePaymentTarget(null);
+                    }}
                 />
             )}
         </div>

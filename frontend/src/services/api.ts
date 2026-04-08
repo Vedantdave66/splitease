@@ -352,16 +352,6 @@ export interface WalletTransaction {
 }
 
 export const walletApi = {
-    addFunds: (amount: number, source_account_id?: string) =>
-        request<User>('/wallet/add-funds', {
-            method: 'POST',
-            body: JSON.stringify({ amount, source_account_id })
-        }),
-    withdraw: (data: { destination_account: string }) =>
-        request<User>('/wallet/withdraw', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        }),
     getBalance: () => request<User>('/wallet/balance'),
     getTransactions: () => request<WalletTransaction[]>('/wallet/transactions'),
 };
@@ -391,7 +381,15 @@ export const requestsApi = {
             body: JSON.stringify(data)
         }),
     list: (groupId: string) => request<PaymentRequestData[]>(`/groups/${groupId}/requests`),
-    payWithWallet: (requestId: string) => request<PaymentRequestData>(`/requests/${requestId}/pay`, { method: 'PUT' }),
+};
+
+// --- Strict Stripe Payments ---
+export const paymentsApi = {
+    create: (data: { payee_id: string; amount: number; settlement_id?: string }) =>
+        request<{ client_secret: string; payment_id: string }>('/payments/create', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
 };
 
 // --- Expense Reminders ---

@@ -42,6 +42,7 @@ export interface User {
     email: string;
     avatar_color: string;
     created_at: string;
+    wallet_balance: number;
 }
 
 export interface Token {
@@ -170,4 +171,130 @@ export interface Settlement {
 export const balancesApi = {
     getBalances: (groupId: string) => request<UserBalance[]>(`/groups/${groupId}/balances`),
     getSettlements: (groupId: string) => request<Settlement[]>(`/groups/${groupId}/settlements`),
+};
+
+// --- Friends ---
+export interface FriendRequestOut {
+    id: string;
+    sender_id: string;
+    receiver_email: string;
+    status: string;
+    created_at: string;
+    sender_name: string;
+    sender_avatar: string;
+    sender_email: string;
+}
+
+export interface PendingRequests {
+    sent: FriendRequestOut[];
+    received: FriendRequestOut[];
+}
+
+export interface Friend {
+    id: string;
+    name: string;
+    email: string;
+    avatar_color: string;
+    shared_groups_count: number;
+}
+
+export const friendsApi = {
+    sendRequest: (email: string) =>
+        request<FriendRequestOut>('/friends/requests', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        }),
+    getPendingRequests: () =>
+        request<PendingRequests>('/friends/requests/pending'),
+    acceptRequest: (requestId: string) =>
+        request<{status: string, message: string}>(`/friends/requests/${requestId}/accept`, { method: 'PUT' }),
+    declineRequest: (requestId: string) =>
+        request<{status: string, message: string}>(`/friends/requests/${requestId}/decline`, { method: 'PUT' }),
+    getMyFriends: () =>
+        request<Friend[]>('/me/friends'),
+};
+
+// --- Settlements & Payments ---
+export interface SettlementRecordOut {
+    id: string;
+    group_id: string;
+    payer_id: string;
+    payer_name: string;
+    payer_email: string;
+    payer_avatar_color: string;
+    payee_id: string;
+    payee_name: string;
+    payee_email: string;
+    payee_avatar_color: string;
+    amount: number;
+    method: string;
+    status: string; // 'pending' | 'sent' | 'settled' | 'declined'
+    created_at: string;
+    updated_at: string;
+}
+
+export const meApi = {
+    getPayments: () => request<SettlementRecordOut[]>('/me/payments'),
+};
+
+export const settlementsApi = {
+    create: (groupId: string, payee_id: string, amount: number, method: string = 'in_app') =>
+        request<SettlementRecordOut>(`/groups/${groupId}/settlement-records`, {
+            method: 'POST',
+            body: JSON.stringify({ payee_id, amount, method }),
+        }),
+    updateStatus: (groupId: string, settlementId: string, status: string) =>
+        request<SettlementRecordOut>(`/groups/${groupId}/settlement-records/${settlementId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status }),
+        }),
+};
+
+// --- Notifications ---
+export interface NotificationOut {
+    id: string;
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    read: boolean;
+    reference_id: string | null;
+    group_id: string | null;
+    created_at: string;
+}
+
+export const notificationsApi = {
+    list: () => request<NotificationOut[]>('/notifications'),
+    unreadCount: () => request<{count: number}>('/notifications/unread-count'),
+    markRead: (id: string) =>
+        request<NotificationOut>(`/notifications/${id}/read`, { method: 'PUT' }),
+    markAllRead: () =>
+        request<{status: string}>('/notifications/read-all', { method: 'PUT' }),
+};
+
+// --- Wallet ---
+export interface WalletTransactionOut {
+    id: string;
+    user_id: string;
+    type: string;
+    amount: number;
+    status: string;
+    reference_id: string | null;
+    created_at: string;
+    completed_at: string | null;
+}
+
+export const walletApi = {
+    getBalance: () => request<User>('/wallet/balance'),
+    getTransactions: () => request<WalletTransactionOut[]>('/wallet/transactions'),
+    addFunds: (amount: number, source: string = "Bank Account") =>
+        request<User>('/wallet/add-funds', {
+            method: 'POST',
+            body: JSON.stringify({ amount, source })
+        }),
+    withdraw: (amount: number, destination: string = "Bank Account") =>
+        request<User>('/wallet/withdraw', {
+            method: 'POST',
+            body: JSON.stringify({ amount, destination })
+        })
 };

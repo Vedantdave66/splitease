@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.database import engine, Base
-from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet, bank_links, requests, plaid_routes, stripe_routes, users
+from app.routes import auth, groups, expenses, settlements, notifications, me, friends, wallet, bank_links, requests, plaid_routes, stripe_routes, users, payments
 from app.routes import reminders
 from app.services import balance_service
 from app.services.reconciliation import router as reconciliation_router
@@ -107,6 +107,7 @@ app.include_router(plaid_routes.router)
 app.include_router(stripe_routes.router)
 app.include_router(users.router)
 app.include_router(reminders.router)
+app.include_router(payments.router)
 app.include_router(reconciliation_router)
 
 @app.get("/")
