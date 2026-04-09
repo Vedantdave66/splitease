@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, and_, text
+from sqlalchemy import select, or_, and_, text, func
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
