@@ -204,16 +204,21 @@ class PaymentRequest(Base):
     payer: Mapped["User"] = relationship(foreign_keys=[payer_id])
 
 
+from sqlalchemy import UniqueConstraint
+
 class Payment(Base):
     """Core transaction tracker representing a real Stripe PaymentIntent."""
     __tablename__ = "payments"
+    __table_args__ = (
+        UniqueConstraint("settlement_id", "payer_id", name="uq_payment_settlement_payer"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True, nullable=True)
     payer_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     payee_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False) # cents
-    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, processing, succeeded, failed
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, processing, succeeded, failed, expired
     settlement_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("settlement_records.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

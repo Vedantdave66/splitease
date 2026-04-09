@@ -341,6 +341,9 @@ export const stripeApi = {
             method: 'POST',
             body: JSON.stringify(data)
         }),
+    reconcile: (paymentId: string) => 
+        request<{ status: string; resolved: boolean }>(`/stripe/reconcile/${paymentId}`, { method: 'POST' }),
+    cleanup: () => request<{ status: string; expired_count: number }>('/stripe/cleanup', { method: 'POST' }),
 };
 
 export interface WalletTransaction {
@@ -392,6 +395,8 @@ export const paymentsApi = {
             method: 'POST',
             body: JSON.stringify(data)
         }),
+    reconcile: (paymentId: string) => 
+        request<{ status: string; resolved: boolean }>(`/stripe/reconcile/${paymentId}`, { method: 'POST' }),
 };
 
 // --- Expense Reminders ---

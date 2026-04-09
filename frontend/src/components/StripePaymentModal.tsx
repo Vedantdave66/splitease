@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { X, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { paymentsApi } from '../services/api';
+import { paymentsApi, stripeApi } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 
 // Stripe public key - ideally loaded from env
@@ -10,10 +10,12 @@ const stripePromise = loadStripe((import.meta.env.VITE_STRIPE_PUBLIC_KEY as stri
 
 function CheckoutForm({ 
     amount, 
+    paymentId,
     onSuccess, 
     onCancel 
 }: { 
     amount: number; 
+    paymentId: string;
     onSuccess: () => void; 
     onCancel: () => void;
 }) {
@@ -21,21 +23,58 @@ function CheckoutForm({
     const elements = useElements();
     const [isPaying, setIsPaying] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [isSuccess, setIsSuccess] = useState(false);
+    const [step, setStep] = useState<'form' | 'processing' | 'success' | 'stuck'>('form');
+
+    const startPolling = async () => {
+        let attempts = 0;
+        const maxAttempts = 12; // 60 seconds (12 * 5s)
+        
+        const interval = setInterval(async () => {
+            attempts++;
+            try {
+                const res = await paymentsApi.reconcile(paymentId);
+                if (res.status === 'succeeded') {
+                    clearInterval(interval);
+                    setStep('success');
+                    setTimeout(onSuccess, 1500);
+                } else if (res.status === 'failed') {
+                    clearInterval(interval);
+                    setErrorMessage("Payment failed. Please try again.");
+                    setStep('form');
+                    setIsPaying(false);
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
+            }
+
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                setStep('stuck');
+            }
+        }, 5000);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!stripe || !elements) return;
+        if (!stripe || !elements || isPaying) return;
 
         setIsPaying(true);
         setErrorMessage(null);
 
-        // Confirm the payment
-        const { error } = await stripe.confirmPayment({
+        // 1. Submit the form to Stripe first (validates inputs)
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+            setErrorMessage(submitError.message || "Please check your card details.");
+            setIsPaying(false);
+            return;
+        }
+
+        // 2. Confirm the payment
+        const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                return_url: window.location.href, // or whatever URL
+                return_url: window.location.href,
             },
             redirect: "if_required",
         });
@@ -43,22 +82,78 @@ function CheckoutForm({
         if (error) {
             setErrorMessage(error.message || "An unexpected error occurred.");
             setIsPaying(false);
-        } else {
-            setIsSuccess(true);
-            setTimeout(() => {
-                onSuccess();
-            }, 1500);
+        } else if (paymentIntent) {
+            // 3. Strict status machine
+            switch (paymentIntent.status) {
+                case "succeeded":
+                    setStep('success');
+                    setTimeout(onSuccess, 1500);
+                    break;
+                case "processing":
+                    setStep('processing');
+                    startPolling();
+                    break;
+                case "requires_action":
+                    // Stripe will handle the redirect/popup automatically
+                    break;
+                case "requires_payment_method":
+                    setErrorMessage("Payment failed. Please try another card.");
+                    setIsPaying(false);
+                    break;
+                default:
+                    setStep('processing');
+                    startPolling();
+            }
         }
     };
 
-    if (isSuccess) {
+    if (step === 'success') {
         return (
             <div className="py-8 text-center animate-in fade-in zoom-in duration-300">
                 <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="w-8 h-8 text-accent" />
                 </div>
                 <h3 className="text-xl font-bold text-primary mb-2">Payment Successful!</h3>
-                <p className="text-sm text-secondary">Your payment is processing and will arrive in 1-3 business days.</p>
+                <p className="text-sm text-secondary">Your payment is processing and will arrive shortly.</p>
+            </div>
+        );
+    }
+
+    if (step === 'processing') {
+        return (
+            <div className="py-12 text-center animate-in fade-in zoom-in">
+                <Loader2 className="w-10 h-10 text-indigo animate-spin mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-primary mb-1">Confirming Payment...</h3>
+                <p className="text-sm text-secondary">We're verifying the transaction with your bank. This usually takes a few seconds.</p>
+            </div>
+        );
+    }
+
+    if (step === 'stuck') {
+        return (
+            <div className="py-8 text-center animate-in fade-in zoom-in">
+                <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="w-8 h-8 text-warning animate-pulse" />
+                </div>
+                <h3 className="text-lg font-bold text-primary mb-2">Still Processing...</h3>
+                <p className="text-sm text-secondary mb-6">
+                    We're still waiting for confirmation from the payment provider. 
+                    It's safe to close this; the status will update in your dashboard shortly.
+                </p>
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={() => { setStep('processing'); startPolling(); }}
+                        className="w-full py-3 bg-indigo text-white font-bold rounded-xl"
+                    >
+                        Re-check Status
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        className="w-full py-3 bg-surface text-primary font-bold rounded-xl"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
         );
     }
@@ -114,6 +209,7 @@ export default function StripePaymentModal({
     onSuccess
 }: StripePaymentModalProps) {
     const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [paymentId, setPaymentId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +222,7 @@ export default function StripePaymentModal({
                     settlement_id: settlementId,
                 });
                 setClientSecret(res.client_secret);
+                setPaymentId(res.payment_id);
             } catch (err: any) {
                 setError(err.message || 'Failed to initialize payment');
             } finally {
@@ -133,8 +230,29 @@ export default function StripePaymentModal({
             }
         };
 
-        initPayment();
+        if (payeeId && amount > 0) {
+            initPayment();
+        }
     }, [payeeId, amount, settlementId]);
+
+    // Added: Redirect Recovery
+    // We move the redirect check into a sub-component that is wrapped in <Elements>
+    const RedirectHandler = () => {
+        const stripe = useStripe();
+        useEffect(() => {
+            if (!stripe) return;
+            const clientSecretURL = new URLSearchParams(window.location.search).get("payment_intent_client_secret");
+            if (clientSecretURL) {
+                stripe.retrievePaymentIntent(clientSecretURL).then(({paymentIntent}) => {
+                    if (paymentIntent?.status === "succeeded") {
+                        onSuccess();
+                        onClose();
+                    }
+                });
+            }
+        }, [stripe]);
+        return null;
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -177,8 +295,10 @@ export default function StripePaymentModal({
                         </div>
                     ) : clientSecret && (
                         <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
+                            <RedirectHandler />
                             <CheckoutForm 
                                 amount={amount} 
+                                paymentId={paymentId || ''}
                                 onSuccess={() => {
                                     onSuccess();
                                     onClose();

@@ -57,7 +57,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    # Start the reminder scheduler
+    # Start the reconciliation scheduler
+    from app.services.payment_reconciliation import run_payment_reconciliation
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         process_due_reminders,
@@ -66,8 +67,15 @@ async def lifespan(app: FastAPI):
         name="Process due expense reminders",
         replace_existing=True,
     )
+    scheduler.add_job(
+        run_payment_reconciliation,
+        trigger=IntervalTrigger(minutes=30),
+        id="reconciliation_tick",
+        name="Automated payment reconciliation",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("Reminder scheduler started (60-min interval).")
+    logger.info("Schedulers started (Reminders 60m, Reconciliation 30m).")
 
     yield
 
