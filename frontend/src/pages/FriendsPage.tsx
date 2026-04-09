@@ -486,8 +486,8 @@ function LoadingSpinner() {
 function EmptyState({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
     return (
         <div className="py-24 text-center px-6">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-white/10 shadow-inner">
-                <span className="w-8 h-8 text-white/30 [&>svg]:w-full [&>svg]:h-full">{icon}</span>
+            <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-primary/10 shadow-inner">
+                <span className="w-8 h-8 text-secondary/50 [&>svg]:w-full [&>svg]:h-full">{icon}</span>
             </div>
             <h3 className="text-xl font-bold text-primary mb-2">{title}</h3>
             <p className="text-sm text-secondary max-w-sm mx-auto">{desc}</p>

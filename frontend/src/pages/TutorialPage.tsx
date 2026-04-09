@@ -113,8 +113,8 @@ const steps = [
     },
     {
         id: 'bank',
-        title: 'Connect Your Bank',
-        description: 'Securely link your bank account via Plaid. We use bank-level encryption, ensuring your financial data is fully protected and private.',
+        title: 'Connect with Stripe',
+        description: 'Securely link your bank account via Stripe Connect. We use bank-level encryption to help you receive money quickly.',
         icon: CreditCard,
         color: 'text-indigo-500',
         bg: 'bg-indigo-500/20',
@@ -125,10 +125,10 @@ const steps = [
                     <div className="w-16 h-16 bg-bg border border-border rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                         <CreditCard className="w-8 h-8 text-primary" />
                     </div>
-                    <div className="text-lg font-bold text-primary mb-1">Link your account</div>
-                    <div className="text-xs text-secondary mb-6 px-4">Tandem uses Plaid to securely connect to your financial institution.</div>
+                    <div className="text-lg font-bold text-primary mb-1">Receive Payments</div>
+                    <div className="text-xs text-secondary mb-6 px-4">Tandem uses Stripe Connect to securely route money to your account.</div>
                     <button className="w-full py-2.5 rounded-xl bg-primary text-bg font-bold shadow-lg hover:shadow-xl hover:opacity-90 transition-all">
-                        Connect with Plaid
+                        Connect with Stripe
                     </button>
                 </div>
              </div>

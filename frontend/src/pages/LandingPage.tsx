@@ -240,8 +240,8 @@ export default function LandingPage() {
                                                 <Zap className="w-5 h-5 text-primary" />
                                             </div>
                                             <div>
-                                                <h3 className="text-primary font-bold mb-1">In-App Payments</h3>
-                                                <p className="text-sm text-secondary">Connect your bank securely via Plaid and transfer funds directly to friends without leaving Tandem.</p>
+                                                <h3 className="text-primary font-bold mb-1">Instant Payments</h3>
+                                                <p className="text-sm text-secondary">Pay with Apple Pay, Google Pay, or Card directly powered by Stripe without leaving Tandem.</p>
                                             </div>
                                         </div>
                                         <div className="flex gap-4">

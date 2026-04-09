@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/currency';
-import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertCircle, Building2, Plus, LogOut, CheckCircle, ExternalLink } from 'lucide-react';
-import { meApi, SettlementRecord, settlementRecordsApi, walletApi, bankLinksApi, stripeApi, WalletTransaction, ProviderAccount } from '../services/api';
+import { CreditCard, History, Wallet, ArrowRightLeft, ArrowDownRight, ArrowUpRight, AlertCircle, ExternalLink, CheckCircle } from 'lucide-react';
+import { meApi, SettlementRecord, walletApi, stripeApi, WalletTransaction } from '../services/api';
 import PaymentRecordCard from '../components/PaymentRecordCard';
-import LinkBankModal from '../components/LinkBankModal';
 import { useAuth } from '../context/AuthContext';
 
 export default function PaymentsPage() {
     const { user, refetchUser } = useAuth();
     const [payments, setPayments] = useState<SettlementRecord[]>([]);
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-    const [bankAccounts, setBankAccounts] = useState<ProviderAccount[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isLinkBankOpen, setIsLinkBankOpen] = useState(false);
     const [stripeOnboarded, setStripeOnboarded] = useState(false);
     const [stripeLoading, setStripeLoading] = useState(false);
-    const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
 
     useEffect(() => {
         loadAll();
@@ -24,15 +20,13 @@ export default function PaymentsPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [payData, transData, bankData, stripeData] = await Promise.all([
+            const [payData, transData, stripeData] = await Promise.all([
                 meApi.getPayments(),
                 walletApi.getTransactions(),
-                bankLinksApi.list(),
                 stripeApi.getStatus()
             ]);
             setPayments(payData);
             setTransactions(transData);
-            setBankAccounts(bankData);
             setStripeOnboarded(stripeData.onboarded);
         } catch (err) {
             console.error(err);
@@ -71,76 +65,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* Wallet Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-
-
-                {bankAccounts.length === 0 ? (
-                    <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-center items-center text-center">
-                        <div className="w-16 h-16 bg-bg border border-border/50 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
-                            <Building2 className="w-8 h-8 text-secondary" />
-                        </div>
-                        <h3 className="text-lg font-bold text-primary mb-2">Linked Accounts</h3>
-                        <p className="text-sm text-secondary mb-6 max-w-[250px]">
-                            Connect your bank to add funds or withdraw your balance securely.
-                        </p>
-                        <button
-                            onClick={() => setIsLinkBankOpen(true)}
-                            className="px-6 py-2.5 bg-indigo hover:bg-indigo-hover rounded-xl text-sm font-semibold text-white transition-all shadow-md shadow-indigo/20 flex items-center gap-2 cursor-pointer"
-                        >
-                            <Building2 className="w-4 h-4" /> Link Bank Account
-                        </button>
-                    </div>
-                ) : (
-                    <div className="bg-surface-light border border-border rounded-3xl p-6 flex flex-col justify-between">
-                        <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                                    <Building2 className="w-5 h-5 text-indigo" />
-                                    Linked Accounts
-                                </h3>
-                                <button
-                                    onClick={() => setIsLinkBankOpen(true)}
-                                    className="p-1.5 rounded-lg text-secondary hover:text-indigo hover:bg-indigo/10 transition-colors cursor-pointer"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-3">
-                                {bankAccounts.map(account => (
-                                    <div key={account.id} className="flex items-center justify-between p-4 rounded-xl bg-bg border border-border">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-surface flex items-center justify-center border border-border/50">
-                                                <Building2 className="w-5 h-5 text-secondary" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-primary">{account.provider}</p>
-                                                <p className="text-xs text-secondary tracking-widest">{account.account_mask}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={async () => {
-                                                if (window.confirm(`Unlink ${account.provider}?`)) {
-                                                    setUnlinkingId(account.id);
-                                                    try {
-                                                        await bankLinksApi.remove(account.id);
-                                                        await loadAll();
-                                                    } catch (err: any) { alert(err.message); }
-                                                    finally { setUnlinkingId(null); }
-                                                }
-                                            }}
-                                            disabled={unlinkingId === account.id}
-                                            className="p-2 rounded-lg text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
-                                            title="Unlink Account"
-                                        >
-                                            <LogOut className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
                 {/* Stripe Connect Section */}
                 <div className="bg-surface border border-border rounded-3xl p-6 flex flex-col justify-between">
@@ -260,14 +185,6 @@ export default function PaymentsPage() {
             )}
 
 
-            <LinkBankModal
-                isOpen={isLinkBankOpen}
-                onClose={() => setIsLinkBankOpen(false)}
-                onSuccess={() => {
-                    refetchUser();
-                    loadAll();
-                }}
-            />
         </div>
     );
 }
