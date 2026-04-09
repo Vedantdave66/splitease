@@ -44,6 +44,7 @@ import PaymentStatusBadge from '../components/PaymentStatusBadge';
 import Avatar from '../components/Avatar';
 import RequestMoneyModal from '../components/RequestMoneyModal';
 import StripePaymentModal from '../components/StripePaymentModal';
+import StripeOnboardingModal from '../components/StripeOnboardingModal';
 
 type Tab = 'expenses' | 'balances' | 'settlements' | 'payments';
 
@@ -81,6 +82,10 @@ export default function GroupPage() {
 
     // Stripe Payment Modal state
     const [stripeStripeTarget, setStripePaymentTarget] = useState<{payeeId: string, amount: number, settlementId?: string} | null>(null);
+
+    // Stripe Onboarding Modal state
+    const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
+    const [hasDismissedOnboarding, setHasDismissedOnboarding] = useState(() => sessionStorage.getItem('dismissed_stripe_onboarding') === 'true');
 
     useEffect(() => {
         if (groupId) loadAll();
@@ -247,6 +252,21 @@ export default function GroupPage() {
     // Find settlements where the current user owes money
     const mySettlements = effectiveSettlements.filter(s => s.from_user_id === user?.id);
 
+    // Auto-trigger onboarding if owed money
+    useEffect(() => {
+        if (!user || user.stripe_account_id || loading || hasDismissedOnboarding || !group) return;
+        const owedToMe = effectiveSettlements.filter(s => s.to_user_id === user.id);
+        if (owedToMe.length > 0) {
+            setShowStripeOnboarding(true);
+        }
+    }, [user, effectiveSettlements, loading, hasDismissedOnboarding, group]);
+
+    const handleDismissOnboarding = () => {
+        sessionStorage.setItem('dismissed_stripe_onboarding', 'true');
+        setHasDismissedOnboarding(true);
+        setShowStripeOnboarding(false);
+    };
+
     const uniquePaymentRecords = (paymentRecords || []).filter((record, index, self) => {
         if (record.status === 'settled' || record.status === 'declined') return true;
         return index === self.findIndex((t) => (
@@ -345,7 +365,13 @@ export default function GroupPage() {
                             Expense
                         </button>
                         <button
-                            onClick={() => setShowRequestMoney(true)}
+                            onClick={() => {
+                                if (user && !user.stripe_account_id) {
+                                    setShowStripeOnboarding(true);
+                                } else {
+                                    setShowRequestMoney(true);
+                                }
+                            }}
                             className="flex items-center gap-2 bg-indigo hover:bg-indigo-hover text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
                         >
                             <Handshake className="w-4 h-4" />
@@ -607,6 +633,21 @@ export default function GroupPage() {
                     {/* Calculated Group Balance Settlements */}
                     <div>
                         <h3 className="text-lg font-bold text-primary mb-3">Suggested Settlements</h3>
+                        
+                        {!user?.stripe_account_id && hasDismissedOnboarding && effectiveSettlements.some(s => s.to_user_id === user?.id) && (
+                            <div className="bg-indigo/5 border border-indigo/20 rounded-xl p-4 mb-4 flex items-center justify-between shadow-sm">
+                                <div className="text-sm text-primary">
+                                    <span className="font-bold text-indigo">Action Required:</span> Connect your bank to receive payments
+                                </div>
+                                <button 
+                                    onClick={() => setShowStripeOnboarding(true)}
+                                    className="px-4 py-2 bg-indigo hover:bg-indigo-hover text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                                >
+                                    Connect Bank
+                                </button>
+                            </div>
+                        )}
+
                         {effectiveSettlements.length === 0 ? (
                             <div className="bg-surface border border-border rounded-2xl p-12 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
@@ -750,6 +791,13 @@ export default function GroupPage() {
                         loadAll();
                         setStripePaymentTarget(null);
                     }}
+                />
+            )}
+            
+            {showStripeOnboarding && groupId && (
+                <StripeOnboardingModal 
+                    onClose={handleDismissOnboarding}
+                    returnPath={`/group/${groupId}`} 
                 />
             )}
         </div>

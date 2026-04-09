@@ -35,7 +35,7 @@ async def create_payment(
     payee = payee_result.scalars().first()
     
     if not payee or not getattr(payee, 'stripe_account_id', None):
-        raise HTTPException(status_code=400, detail="Payee has not set up Stripe to receive funds.")
+        raise HTTPException(status_code=400, detail="Recipient must connect bank account to receive payments")
 
     # Create Payment model DB record first
     new_payment = Payment(

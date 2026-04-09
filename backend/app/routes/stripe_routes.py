@@ -38,6 +38,7 @@ class PaymentIntentRequest(BaseModel):
 
 @router.post("/onboard")
 async def onboard_user(
+    return_path: str = "/dashboard",
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -60,10 +61,11 @@ async def onboard_user(
             
     # Create an onboarding link
     try:
+        clean_path = return_path.lstrip("/")
         account_link = stripe.AccountLink.create(
             account=current_user.stripe_account_id,
-            refresh_url=f"{settings.FRONTEND_URL}/me/wallet?stripe_refresh=true",
-            return_url=f"{settings.FRONTEND_URL}/me/wallet?stripe_return=true",
+            refresh_url=f"{settings.FRONTEND_URL}/{clean_path}",
+            return_url=f"{settings.FRONTEND_URL}/{clean_path}",
             type="account_onboarding",
         )
         return {"url": account_link.url}

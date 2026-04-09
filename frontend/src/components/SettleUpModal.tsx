@@ -65,7 +65,11 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                 setShowStripeModal(true);
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to initiate settlement');
+            let msg = err.message || 'Failed to initiate settlement';
+            if (msg.includes('Recipient must connect')) {
+                msg = "This user hasn't set up payouts yet.";
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }

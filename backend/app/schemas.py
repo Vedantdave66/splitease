@@ -38,6 +38,7 @@ class UserOut(BaseModel):
     avatar_color: str
     wallet_balance: Decimal = 0.0
     interac_email: str | None = None
+    stripe_account_id: str | None = None
     created_at: datetime
 
     class Config:
