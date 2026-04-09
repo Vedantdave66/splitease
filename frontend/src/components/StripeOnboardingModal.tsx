@@ -36,19 +36,22 @@ export default function StripeOnboardingModal({ onClose, returnPath = '/dashboar
                     </div>
                     
                     <h2 className="text-xl font-black text-primary mb-2">Get paid instantly</h2>
-                    <p className="text-sm text-secondary px-2 leading-relaxed">
-                        To receive payments directly in TandemPay, connect your bank securely with Stripe.
+                    <p className="text-sm text-secondary px-2 leading-relaxed mb-1">
+                        To receive money directly into your bank, connect securely with Stripe.
+                    </p>
+                    <p className="text-xs font-semibold text-indigo">
+                        Funds arrive in 1–3 business days
                     </p>
                 </div>
 
                 <div className="px-6 py-4 flex flex-col gap-3 relative z-10">
-                    <div className="bg-bg border border-border rounded-xl p-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center shrink-0">
-                            <Lock className="w-4 h-4 text-accent" />
+                    <div className="bg-indigo/5 border border-indigo/20 rounded-xl p-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo/10 flex items-center justify-center shrink-0">
+                            <Lock className="w-4 h-4 text-indigo" />
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="text-xs font-bold text-primary">Secure and encrypted</p>
-                            <p className="text-[10px] text-secondary">Powered by Stripe</p>
+                            <p className="text-sm font-bold text-primary">Secure and encrypted</p>
+                            <p className="text-xs font-semibold text-indigo">Powered by Stripe</p>
                         </div>
                     </div>
                     
@@ -63,7 +66,7 @@ export default function StripeOnboardingModal({ onClose, returnPath = '/dashboar
                         disabled={loading}
                         className="w-full flex items-center justify-center gap-2 bg-indigo hover:bg-indigo-hover text-white font-bold py-3.5 rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo/20 disabled:opacity-50"
                     >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect Bank'}
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect Bank Securely'}
                         {!loading && <ExternalLink className="w-4 h-4 opacity-50" />}
                     </button>
                     
