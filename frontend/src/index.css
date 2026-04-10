@@ -194,21 +194,21 @@ textarea {
 }
 
 /* Light mode glassmorphic card */
-:root[data-theme="light"] .auth-card {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(203, 213, 225, 0.6);
+[data-theme="light"] .auth-card {
+  background: rgba(255, 255, 255, 0.85); /* Slightly more opaque for better contrast */
+  border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow:
-    0 0 0 1px rgba(22, 163, 74, 0.03),
-    0 20px 50px rgba(0, 0, 0, 0.08),
-    0 0 80px rgba(22, 163, 74, 0.03);
+    0 0 0 1px rgba(22, 163, 74, 0.02),
+    0 20px 50px rgba(0, 0, 0, 0.05),
+    0 0 80px rgba(22, 163, 74, 0.02);
 }
 
-:root[data-theme="light"] .auth-card::before {
+[data-theme="light"] .auth-card::before {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(22, 163, 74, 0.3),
-    rgba(79, 70, 229, 0.2),
+    rgba(22, 163, 74, 0.1),
+    rgba(79, 70, 229, 0.1),
     transparent
   );
 }
@@ -225,8 +225,8 @@ textarea {
   box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1), 0 0 16px rgba(74, 222, 128, 0.05);
 }
 
-:root[data-theme="light"] .auth-input:focus {
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1), 0 0 16px rgba(22, 163, 74, 0.05);
+[data-theme="light"] .auth-input:focus {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08), 0 0 16px rgba(22, 163, 74, 0.03);
 }
 
 /* ═══════════════════════════════════════════ */

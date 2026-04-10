@@ -50,7 +50,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Sidebar */}
             <aside className={`
-                fixed inset-y-0 left-0 z-40 w-64 bg-surface border-r border-border flex flex-col h-full
+                fixed inset-y-0 left-0 z-40 w-64 bg-surface border-r border-border flex flex-col h-full shadow-[1px_0_0_rgba(0,0,0,0.05)]
                 transform transition-transform duration-300 ease-in-out
                 md:translate-x-0
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -129,13 +129,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </nav>
 
                 {/* Notification Bell & Theme Desktop */}
-                <div className="hidden md:flex flex-col gap-3 px-4 pb-4 border-b border-border mb-2">
+                <div className="hidden md:flex flex-col gap-3 px-4 pb-4 border-b border-border/60 mb-2">
                     <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-secondary">Theme</span>
+                        <span className="text-sm font-semibold text-primary/70">Theme</span>
                         <ThemeToggle />
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-secondary">Notifications</span>
+                        <span className="text-sm font-semibold text-primary/70">Notifications</span>
                         <NotificationBell />
                     </div>
                 </div>

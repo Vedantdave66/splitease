@@ -415,7 +415,7 @@ export default function GroupPage() {
                                                 onClick={() => {
                                                     setSettleUpTarget(s);
                                                 }}
-                                                className="px-3 py-1.5 bg-accent/20 hover:bg-accent/30 border border-accent/20 text-accent text-xs font-bold rounded-lg transition-all cursor-pointer"
+                                                className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-lg shadow-accent/20 border-none"
                                             >
                                                 Pay Balance
                                             </button>
@@ -680,7 +680,7 @@ export default function GroupPage() {
                                                 {canSettle && (
                                                     <button
                                                         onClick={() => setStripePaymentTarget({ payeeId: s.to_user_id, amount: s.amount })}
-                                                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 border border-accent/20 hover:border-accent/40 text-accent font-bold text-sm py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/5 hover:shadow-accent/10"
+                                                        className="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white font-black text-sm py-3.5 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/20 border-none"
                                                     >
                                                         <Handshake className="w-4 h-4" />
                                                         Pay {formatCurrency(s?.amount)}

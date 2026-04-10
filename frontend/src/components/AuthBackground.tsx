@@ -36,11 +36,18 @@ export default function AuthBackground() {
             color: string;
         }
 
-        const colors = [
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+        const colors = isDark ? [
             'rgba(74, 222, 128,',   // accent green
             'rgba(129, 140, 248,',  // indigo
             'rgba(56, 189, 248,',   // sky blue
             'rgba(167, 139, 250,',  // violet
+        ] : [
+            'rgba(22, 163, 74,',    // accent green (darker)
+            'rgba(79, 70, 229,',    // indigo (darker)
+            'rgba(2, 132, 199,',    // sky blue (darker)
+            'rgba(124, 58, 237,',   // violet (darker)
         ];
 
         // Create particles
@@ -59,11 +66,16 @@ export default function AuthBackground() {
         }
 
         // Gradient orbs — slow-moving colored blobs
-        const orbs = [
+        const orbs = isDark ? [
             { x: 0.25, y: 0.3, radius: 350, color: 'rgba(74, 222, 128, 0.06)', speed: 0.0003, offset: 0 },
             { x: 0.75, y: 0.7, radius: 400, color: 'rgba(129, 140, 248, 0.05)', speed: 0.0002, offset: 2 },
             { x: 0.5, y: 0.2, radius: 300, color: 'rgba(56, 189, 248, 0.04)', speed: 0.00025, offset: 4 },
             { x: 0.3, y: 0.8, radius: 280, color: 'rgba(167, 139, 250, 0.04)', speed: 0.00035, offset: 1 },
+        ] : [
+            { x: 0.25, y: 0.3, radius: 350, color: 'rgba(22, 163, 74, 0.04)', speed: 0.0003, offset: 0 },
+            { x: 0.75, y: 0.7, radius: 400, color: 'rgba(79, 70, 229, 0.03)', speed: 0.0002, offset: 2 },
+            { x: 0.5, y: 0.2, radius: 300, color: 'rgba(2, 132, 199, 0.03)', speed: 0.00025, offset: 4 },
+            { x: 0.3, y: 0.8, radius: 280, color: 'rgba(124, 58, 237, 0.03)', speed: 0.00035, offset: 1 },
         ];
 
         let time = 0;
