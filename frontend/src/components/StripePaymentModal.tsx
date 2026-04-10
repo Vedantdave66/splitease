@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { X, Loader2, ShieldCheck, CheckCircle2, Clock } from 'lucide-react';
-import { paymentsApi, stripeApi } from '../services/api';
+import { X, Loader2, ShieldCheck, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { paymentsApi } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 
-// Stripe public key - ideally loaded from env
+// Stripe public key
 const stripePromise = loadStripe((import.meta.env.VITE_STRIPE_PUBLIC_KEY as string) || 'pk_test_TYooMQauvdEDq54NiTphI7jx');
 
 type UIState = 'idle' | 'submitting' | 'verifying' | 'success' | 'error' | 'timeout';
@@ -13,11 +13,13 @@ type UIState = 'idle' | 'submitting' | 'verifying' | 'success' | 'error' | 'time
 function CheckoutForm({ 
     amount, 
     paymentId,
+    clientSecret,
     onSuccess, 
     onCancel 
 }: { 
     amount: number; 
     paymentId: string;
+    clientSecret: string;
     onSuccess: () => void; 
     onCancel: () => void;
 }) {
@@ -25,76 +27,118 @@ function CheckoutForm({
     const elements = useElements();
     const [state, setState] = useState<UIState>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [elementReady, setElementReady] = useState(false);
+    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const stateRef = useRef<UIState>('idle');
 
-    const startPolling = async (pid: string) => {
+    // Keep ref in sync with state for interval callbacks
+    useEffect(() => { stateRef.current = state; }, [state]);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+        };
+    }, []);
+
+    console.log(`[StripePayment] CheckoutForm mounted. stripe=${!!stripe} elements=${!!elements} clientSecret=${clientSecret?.slice(0, 20)}...`);
+
+    const startPolling = useCallback((pid: string) => {
         setState('verifying');
         const startTime = Date.now();
         
-        const interval = setInterval(async () => {
+        pollingRef.current = setInterval(async () => {
             const elapsed = Date.now() - startTime;
             
             try {
                 const res = await paymentsApi.reconcile(pid);
+                console.log(`[StripePayment] Poll result: status=${res.status} resolved=${res.resolved}`);
+
                 if (res.status === 'succeeded') {
-                    clearInterval(interval);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
                     setState('success');
                     setTimeout(onSuccess, 2000);
                 } else if (res.status === 'failed' || res.status === 'expired') {
-                    clearInterval(interval);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
                     setErrorMessage(res.status === 'expired' ? "Payment session expired. Please restart." : "Payment failed. Please try another card.");
                     setState('error');
                 }
             } catch (err) {
-                console.error("Polling error:", err);
+                console.error("[StripePayment] Polling error:", err);
             }
 
-            // Timeout after 10 seconds -> Move to 'timeout' state but keep polling in background if helpful
-            // Requirement says "Show 'Still processing', Trigger reconciliation, Continue polling"
-            if (elapsed > 10000 && state === 'verifying') {
+            // Timeout after 10 seconds
+            if (elapsed > 10000 && stateRef.current === 'verifying') {
                 setState('timeout');
-                // We keep the interval running
             }
-        }, 2000); // 2-3s interval as requested
-        
-        return () => clearInterval(interval);
-    };
+        }, 2500);
+    }, [onSuccess]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!stripe || !elements || state !== 'idle') return;
+        
+        if (!stripe || !elements) {
+            console.error('[StripePayment] handleSubmit called but stripe or elements is null');
+            setErrorMessage('Payment system not ready. Please wait a moment and try again.');
+            return;
+        }
+
+        if (state !== 'idle') {
+            console.warn(`[StripePayment] handleSubmit called in state=${state}, ignoring`);
+            return;
+        }
+
+        if (!elementReady) {
+            console.warn('[StripePayment] PaymentElement not ready yet');
+            setErrorMessage('Payment form is still loading. Please wait.');
+            return;
+        }
 
         setState('submitting');
         setErrorMessage(null);
 
-        // STEP 1: Strict elements.submit()
-        const { error: submitError } = await elements.submit();
-        if (submitError) {
-            setErrorMessage(submitError.message || "Validation failed.");
-            setState('idle');
-            return;
-        }
-
-        // STEP 2: confirmPayment()
-        const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            confirmParams: {
-                return_url: window.location.href, // Fallback for redirects
-            },
-            redirect: "if_required",
-        });
-
-        if (error) {
-            // Check if it's a real error or just a redirect happening
-            if (error.type === "card_error" || error.type === "validation_error") {
-                setErrorMessage(error.message || "An error occurred.");
+        try {
+            // STEP 1: elements.submit() — validates form fields
+            console.log('[StripePayment] Step 1: elements.submit()...');
+            const { error: submitError } = await elements.submit();
+            if (submitError) {
+                console.error('[StripePayment] elements.submit() failed:', submitError);
+                setErrorMessage(submitError.message || "Please check your card details.");
                 setState('idle');
-            } else {
-                // For other errors, we might be in an uncertain state, start verifying
+                return;
+            }
+            console.log('[StripePayment] Step 1 SUCCESS: elements.submit() passed');
+
+            // STEP 2: stripe.confirmPayment() — this attaches the payment method AND confirms
+            console.log('[StripePayment] Step 2: stripe.confirmPayment()...');
+            const { error, paymentIntent } = await stripe.confirmPayment({
+                elements,
+                clientSecret,
+                confirmParams: {
+                    return_url: window.location.href,
+                },
+                redirect: "if_required",
+            });
+
+            if (error) {
+                console.error('[StripePayment] confirmPayment error:', error.type, error.message);
+                if (error.type === "card_error" || error.type === "validation_error") {
+                    setErrorMessage(error.message || "An error occurred with your card.");
+                    setState('idle');
+                } else {
+                    // For other errors (e.g. network issues during 3DS), start polling
+                    console.log('[StripePayment] Non-card error, starting verification polling...');
+                    startPolling(paymentId);
+                }
+            } else if (paymentIntent) {
+                console.log(`[StripePayment] Step 2 SUCCESS: PI status=${paymentIntent.status}`);
+                // Move to verification — NEVER trust client-side success
                 startPolling(paymentId);
             }
-        } else if (paymentIntent) {
-            // STEP 3: Move to verifying ONLY. NEVER success immediately.
-            startPolling(paymentId);
+        } catch (err: any) {
+            console.error('[StripePayment] Unexpected error in handleSubmit:', err);
+            setErrorMessage(err.message || 'An unexpected error occurred.');
+            setState('error');
         }
     };
 
@@ -141,16 +185,38 @@ function CheckoutForm({
         );
     }
 
+    if (state === 'error') {
+        return (
+            <div className="py-8 text-center">
+                <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center mx-auto mb-6 text-danger">
+                    <AlertTriangle className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-primary mb-2">Payment Failed</h3>
+                <p className="text-sm text-secondary mb-8">{errorMessage}</p>
+                <button onClick={onCancel} className="w-full py-4 bg-primary text-bg font-bold rounded-2xl cursor-pointer">Return</button>
+            </div>
+        );
+    }
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <PaymentElement 
+                onReady={() => {
+                    console.log('[StripePayment] PaymentElement ready');
+                    setElementReady(true);
+                }}
+                onLoadError={(e) => {
+                    console.error('[StripePayment] PaymentElement load error:', e);
+                    setErrorMessage('Failed to load payment form. Please close and try again.');
+                    setState('error');
+                }}
                 options={{ 
                     wallets: { applePay: 'never', googlePay: 'never' },
                     layout: 'tabs'
                 }} 
             />
             
-            {errorMessage && (
+            {errorMessage && state === 'idle' && (
                 <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl text-sm font-medium text-danger animate-in shake">
                     {errorMessage}
                 </div>
@@ -161,14 +227,14 @@ function CheckoutForm({
                     type="button"
                     onClick={onCancel}
                     disabled={state === 'submitting'}
-                    className="flex-1 py-4 bg-surface hover:bg-border text-primary font-bold rounded-2xl transition-all"
+                    className="flex-1 py-4 bg-surface hover:bg-border text-primary font-bold rounded-2xl transition-all cursor-pointer"
                 >
                     Back
                 </button>
                 <button
                     type="submit"
-                    disabled={!stripe || state !== 'idle'}
-                    className="flex-[2] py-4 bg-indigo hover:bg-indigo-hover text-white font-bold rounded-2xl flex items-center justify-center shadow-xl shadow-indigo/20 disabled:opacity-50"
+                    disabled={!stripe || !elementReady || state !== 'idle'}
+                    className="flex-[2] py-4 bg-indigo hover:bg-indigo-hover text-white font-bold rounded-2xl flex items-center justify-center shadow-xl shadow-indigo/20 disabled:opacity-50 cursor-pointer"
                 >
                     {state === 'submitting' ? <Loader2 className="w-6 h-6 animate-spin" /> : `Pay $${formatCurrency(amount)}`}
                 </button>
@@ -196,10 +262,16 @@ export default function StripePaymentModal({
     const [paymentId, setPaymentId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const initRef = useRef(false);
 
-    // PERSISTENT RECOVERY (CRITICAL)
+    // Fetch a FRESH client_secret every time the modal mounts
     useEffect(() => {
+        // Strict: only run once per mount
+        if (initRef.current) return;
+        initRef.current = true;
+
         const initPayment = async () => {
+            console.log(`[StripePayment] Initializing payment: payee=${payeeId} amount=${amount} settlement=${settlementId}`);
             try {
                 const res = await paymentsApi.create({
                     payee_id: payeeId,
@@ -207,15 +279,25 @@ export default function StripePaymentModal({
                     settlement_id: settlementId,
                 });
                 
+                console.log(`[StripePayment] Payment API response: status=${res.status} payment_id=${res.payment_id} secret=${res.client_secret?.slice(0, 20)}...`);
+
                 if (res.status === 'already_completed') {
                     onSuccess();
                     onClose();
                     return;
                 }
 
+                if (!res.client_secret) {
+                    console.error('[StripePayment] No client_secret returned from API!');
+                    setError('Payment initialization failed — no secret returned. The payment may already be processing.');
+                    setLoading(false);
+                    return;
+                }
+
                 setClientSecret(res.client_secret);
                 setPaymentId(res.payment_id);
             } catch (err: any) {
+                console.error('[StripePayment] initPayment error:', err);
                 setError(err.message || 'Payment initialization failed.');
             } finally {
                 setLoading(false);
@@ -224,26 +306,11 @@ export default function StripePaymentModal({
 
         if (payeeId && amount > 0) {
             initPayment();
+        } else {
+            setError('Invalid payment parameters.');
+            setLoading(false);
         }
-    }, [payeeId, amount, settlementId]);
-
-    const RedirectHandler = () => {
-        const stripe = useStripe();
-        useEffect(() => {
-            if (!stripe) return;
-            const params = new URLSearchParams(window.location.search);
-            const cs = params.get("payment_intent_client_secret");
-            if (cs) {
-                stripe.retrievePaymentIntent(cs).then(({paymentIntent}) => {
-                    if (paymentIntent?.status === "succeeded") {
-                        onSuccess();
-                        onClose();
-                    }
-                });
-            }
-        }, [stripe]);
-        return null;
-    };
+    }, []); // Empty deps — runs exactly once on mount
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-md">
@@ -256,7 +323,7 @@ export default function StripePaymentModal({
                             <span className="text-[10px] uppercase font-bold text-accent tracking-wider">Processed by Stripe</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-surface hover:bg-border rounded-2xl transition-all">
+                    <button onClick={onClose} className="p-3 bg-surface hover:bg-border rounded-2xl transition-all cursor-pointer">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -274,22 +341,37 @@ export default function StripePaymentModal({
                             </div>
                             <h3 className="text-xl font-bold text-primary mb-2">Initialization Failed</h3>
                             <p className="text-sm text-secondary mb-8">{error}</p>
-                            <button onClick={onClose} className="w-full py-4 bg-primary text-bg font-bold rounded-2xl">Return</button>
+                            <button onClick={onClose} className="w-full py-4 bg-primary text-bg font-bold rounded-2xl cursor-pointer">Return</button>
                         </div>
-                    ) : clientSecret && (
+                    ) : clientSecret && paymentId ? (
                         <Elements 
-                            key={clientSecret} 
+                            key={clientSecret}
                             stripe={stripePromise} 
-                            options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#3ECF8E' } } }}
+                            options={{ 
+                                clientSecret, 
+                                appearance: { 
+                                    theme: 'night', 
+                                    variables: { colorPrimary: '#3ECF8E' } 
+                                } 
+                            }}
                         >
-                            <RedirectHandler />
                             <CheckoutForm 
                                 amount={amount} 
-                                paymentId={paymentId || ''}
+                                paymentId={paymentId}
+                                clientSecret={clientSecret}
                                 onSuccess={() => { onSuccess(); onClose(); }} 
                                 onCancel={onClose} 
                             />
                         </Elements>
+                    ) : (
+                        <div className="py-8 text-center">
+                            <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center mx-auto mb-6 text-danger">
+                                <AlertTriangle className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold text-primary mb-2">Something Went Wrong</h3>
+                            <p className="text-sm text-secondary mb-8">Could not initialize payment session.</p>
+                            <button onClick={onClose} className="w-full py-4 bg-primary text-bg font-bold rounded-2xl cursor-pointer">Return</button>
+                        </div>
                     )}
                 </div>
             </div>

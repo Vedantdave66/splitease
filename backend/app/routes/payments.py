@@ -80,10 +80,15 @@ async def create_payment(
                     logger.info(f"[{correlation_id}] Stripe PI status: {status}")
 
                     if status == "succeeded":
-                        return {"status": "already_completed", "payment_id": existing_payment.id}
+                        return {"status": "already_completed", "payment_id": existing_payment.id, "client_secret": None}
                     
                     if status == "processing":
-                        return {"status": "already_processing", "payment_id": existing_payment.id}
+                        # Still processing — return secret so frontend can track it
+                        return {
+                            "status": "already_processing", 
+                            "payment_id": existing_payment.id,
+                            "client_secret": intent.client_secret
+                        }
                     
                     if status in ["requires_action", "requires_confirmation"]:
                         # SAFE RESUMPTION: Return existing secret for 3DS or confirmation
@@ -91,6 +96,7 @@ async def create_payment(
                         return {
                             "client_secret": intent.client_secret, 
                             "payment_id": existing_payment.id,
+                            "status": "created",
                             "resumed": True
                         }
 
@@ -112,6 +118,7 @@ async def create_payment(
                     # For safety, if we can't confirm status, we fallback to marking expired if safe.
                     if existing_payment.status not in ["succeeded", "processing"]:
                         existing_payment.status = "expired"
+
 
     # 4. Create NEW Payment model DB record
     new_payment = Payment(
@@ -144,19 +151,24 @@ async def create_payment(
             idempotency_key=f"pi_create_req_{uuid.uuid4()}" 
         )
         
-        logger.info(f"[{correlation_id}] Fresh Stripe PaymentIntent created: id={intent.id}")
+        logger.info(f"[{correlation_id}] Fresh Stripe PaymentIntent created: id={intent.id} status={intent.status} client_secret={intent.client_secret[:20]}...")
 
         new_payment.stripe_payment_intent_id = intent.id
-        new_payment.status = "processing"
+        # Keep status as 'pending' — it transitions to 'processing' only when 
+        # Stripe actually starts processing (after user submits payment method)
         
         await db.commit()
-        return {
+        
+        response = {
             "client_secret": intent.client_secret, 
             "payment_id": new_payment.id,
             "status": "created"
         }
+        logger.info(f"[{correlation_id}] Returning to frontend: payment_id={new_payment.id} secret_prefix={intent.client_secret[:20]}...")
+        return response
 
     except Exception as e:
         logger.error(f"[{correlation_id}] Stripe creation error: {str(e)}")
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
