@@ -111,10 +111,10 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                     </h2>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
+                        className="w-9 h-9 rounded-xl bg-surface-light border border-border flex items-center justify-center hover:bg-border transition-colors cursor-pointer"
                         aria-label="Close"
                     >
-                        <X className="w-4 h-4 text-white/60" />
+                        <X className="w-4 h-4 text-secondary" />
                     </button>
                 </div>
 
@@ -162,7 +162,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                 <button
                                     onClick={() => handleInitiateSettlement('etransfer')}
                                     disabled={loading}
-                                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-indigo/30 transition-all duration-300 cursor-pointer group disabled:opacity-50"
+                                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-surface-light border border-border hover:border-indigo/30 transition-all duration-300 cursor-pointer group disabled:opacity-50"
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-indigo/10 flex items-center justify-center group-hover:bg-indigo/20 transition-colors">
                                         <Landmark className="w-6 h-6 text-indigo" />
@@ -171,7 +171,7 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                         <p className="text-sm font-bold text-primary">E-Transfer</p>
                                         <p className="text-xs text-secondary">Send manually outside the app</p>
                                     </div>
-                                    <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-indigo transition-colors" />
+                                    <ArrowRight className="w-4 h-4 text-secondary/30 group-hover:text-indigo transition-colors" />
                                 </button>
                             </div>
                         </div>
@@ -182,12 +182,12 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                     {/* E-TRANSFER */}
                     {step === 'etransfer' && (
                         <div className="space-y-5">
-                            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5">
+                            <div className="bg-surface-light border border-border rounded-2xl p-5">
                                 <div className="flex items-center gap-4 mb-5">
                                     <Avatar name={recipientName} color={recipientColor} size="md" />
                                     <div>
-                                        <p className="text-sm font-bold text-white">{recipientName}</p>
-                                        <p className="text-xs text-white/40">Recipient</p>
+                                        <p className="text-sm font-bold text-primary">{recipientName}</p>
+                                        <p className="text-xs text-secondary/60">Recipient</p>
                                     </div>
                                 </div>
 
@@ -199,10 +199,10 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                         </div>
                                         <button
                                             onClick={handleCopyEmail}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover border border-border transition-all cursor-pointer"
                                         >
-                                            {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> : <Copy className="w-3.5 h-3.5 text-white/50" />}
-                                            <span className="text-xs text-white/60">{copied ? 'Copied' : 'Copy'}</span>
+                                            {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> : <Copy className="w-3.5 h-3.5 text-secondary" />}
+                                            <span className="text-xs text-secondary font-medium">{copied ? 'Copied' : 'Copy'}</span>
                                         </button>
                                     </div>
 
@@ -232,14 +232,14 @@ export default function SettleUpModal({ groupId, settlement, currentUserId, onCl
                                 <Send className="w-9 h-9 text-indigo" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-white mb-1">Payment Marked as Sent</h3>
-                                <p className="text-sm text-white/40">
+                                <h3 className="text-xl font-black text-primary mb-1">Payment Marked as Sent</h3>
+                                <p className="text-sm text-secondary">
                                     {recipientName} will be notified to confirm when they receive it.
                                 </p>
                             </div>
                             <button
                                 onClick={() => { onSettled(); onClose(); }}
-                                className="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold py-3 rounded-xl transition-all duration-200 cursor-pointer"
+                                className="w-full bg-accent hover:bg-accent-hover text-white font-bold py-3.5 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-accent/20 border-none"
                             >
                                 Done
                             </button>

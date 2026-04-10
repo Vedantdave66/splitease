@@ -7,32 +7,32 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
     pending: {
         label: 'Pending',
         bg: 'bg-amber-500/10 border-amber-500/20',
-        text: 'text-amber-300',
-        dot: 'bg-amber-400',
+        text: 'text-amber-700 dark:text-amber-300',
+        dot: 'bg-amber-500 dark:bg-amber-400',
     },
     sent: {
         label: 'Awaiting Confirmation',
         bg: 'bg-indigo/10 border-indigo/20',
-        text: 'text-indigo',
-        dot: 'bg-indigo',
+        text: 'text-indigo-700 dark:text-indigo-400',
+        dot: 'bg-indigo-600 dark:bg-indigo-400',
     },
     settled: {
         label: 'Settled',
         bg: 'bg-accent/10 border-accent/20',
-        text: 'text-accent',
+        text: 'text-accent dark:text-accent',
         dot: 'bg-accent',
     },
     declined: {
         label: 'Not Received',
         bg: 'bg-red-500/10 border-red-500/20',
-        text: 'text-red-400',
-        dot: 'bg-red-400',
+        text: 'text-red-700 dark:text-red-400',
+        dot: 'bg-red-600 dark:bg-red-400',
     },
     unpaid: {
         label: 'Unpaid',
-        bg: 'bg-white/5 border-white/10',
-        text: 'text-white/50',
-        dot: 'bg-white/30',
+        bg: 'bg-surface-light border-border',
+        text: 'text-secondary font-bold',
+        dot: 'bg-secondary/40',
     },
 };
 

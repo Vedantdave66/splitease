@@ -394,28 +394,29 @@ export default function GroupPage() {
                     </div>
                 </div>
 
-                {/* Quick Pay Balance Banner */}
+                {/* Quick Pay Balance Banner — High Contrast Rebuild */}
                 {mySettlements.length > 0 && (
                     <div className="mt-5 pt-5 border-t border-border">
-                        <div className="bg-gradient-to-r from-accent/5 to-indigo/5 border border-accent/10 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-bold text-white/50 uppercase tracking-widest">You Owe</p>
-                                <Clock className="w-3.5 h-3.5 text-white/20" />
+                        <div className="bg-surface-light border border-accent/20 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                            <div className="flex items-center justify-between mb-4 relative z-10">
+                                <p className="text-[10px] font-black text-secondary/70 uppercase tracking-[0.2em]">You Owe</p>
+                                <Clock className="w-4 h-4 text-secondary/30" />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-4 relative z-10">
                                 {mySettlements.map((s, i) => (
                                     <div key={i} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Avatar name={s.to_user_name} color={s.to_avatar_color} size="sm" />
-                                            <span className="text-sm text-white/70">{s.to_user_name}</span>
-                                        </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="text-base font-black text-white">${formatCurrency(s?.amount)}</span>
+                                            <Avatar name={s.to_user_name} color={s.to_avatar_color} size="md" />
+                                            <span className="text-sm font-bold text-primary">{s.to_user_name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-xl font-black text-primary tracking-tight">${formatCurrency(s?.amount)}</span>
                                             <button
                                                 onClick={() => {
                                                     setSettleUpTarget(s);
                                                 }}
-                                                className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-lg shadow-accent/20 border-none"
+                                                className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-lg shadow-accent/20 border-none"
                                             >
                                                 Pay Balance
                                             </button>
@@ -714,7 +715,7 @@ export default function GroupPage() {
                                     const count = uniquePaymentRecords.filter(r => r.status === status).length;
                                     return (
                                         <div key={status} className="bg-surface border border-border rounded-xl p-3 text-center">
-                                            <p className="text-lg font-black text-white mb-1">{count}</p>
+                                            <p className="text-lg font-black text-primary mb-1">{count}</p>
                                             <PaymentStatusBadge status={status} size="sm" />
                                         </div>
                                     );
