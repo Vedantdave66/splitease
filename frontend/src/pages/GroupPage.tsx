@@ -45,6 +45,7 @@ import Avatar from '../components/Avatar';
 import RequestMoneyModal from '../components/RequestMoneyModal';
 import StripePaymentModal from '../components/StripePaymentModal';
 import StripeOnboardingModal from '../components/StripeOnboardingModal';
+import { computeUserBalances, deriveSuggestedSettlements, isAllSettled } from '../utils/balances';
 
 type Tab = 'expenses' | 'balances' | 'settlements' | 'payments';
 
@@ -55,8 +56,6 @@ export default function GroupPage() {
 
     const [group, setGroup] = useState<Group | null>(null);
     const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [balances, setBalances] = useState<UserBalance[]>([]);
-    const [settlements, setSettlements] = useState<Settlement[]>([]);
     const [paymentRecords, setPaymentRecords] = useState<SettlementRecord[]>([]);
     const [paymentRequests, setPaymentRequests] = useState<PaymentRequestData[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('expenses');
@@ -95,18 +94,14 @@ export default function GroupPage() {
         if (!groupId) return;
         setLoading(true);
         try {
-            const [g, e, b, s, pr, reqs] = await Promise.all([
+            const [g, e, pr, reqs] = await Promise.all([
                 groupsApi.get(groupId),
                 expensesApi.list(groupId),
-                balancesApi.getBalances(groupId),
-                balancesApi.getSettlements(groupId),
                 settlementRecordsApi.list(groupId),
                 requestsApi.list(groupId)
             ]);
             setGroup(g);
             setExpenses(e);
-            setBalances(b);
-            setSettlements(s);
             setPaymentRecords(pr);
             setPaymentRequests(reqs.filter(r => r.status === 'pending'));
         } catch (err) {
@@ -240,14 +235,13 @@ export default function GroupPage() {
         });
     };
 
-    const totalSpent = (expenses || []).reduce((s, e) => s + e.amount, 0);
+    const totalSpent = (expenses || []).reduce((s, e) => s + Number(e.amount), 0);
 
-    const effectiveSettlements = (settlements || []).map(s => {
-        const pendingOrSentAmount = (paymentRecords || [])
-            .filter(r => r.payer_id === s.from_user_id && r.payee_id === s.to_user_id && (r.status === 'pending' || r.status === 'sent'))
-            .reduce((sum, r) => sum + r.amount, 0);
-        return { ...s, amount: s.amount - pendingOrSentAmount };
-    }).filter(s => s.amount > 0.01);
+    // CENTRALIZED BALANCE COMPUTATION (Single Source of Truth)
+    const computedBalances = computeUserBalances(expenses, paymentRecords, group?.members || []);
+    const effectiveSettlements = deriveSuggestedSettlements(computedBalances);
+    const allSettled = isAllSettled(computedBalances);
+    const currentUserBalance = computedBalances.find(b => b.user_id === user?.id);
 
     // Find settlements where the current user owes money
     const mySettlements = effectiveSettlements.filter(s => s.from_user_id === user?.id);
@@ -280,7 +274,7 @@ export default function GroupPage() {
     const tabs: { key: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
         { key: 'expenses', label: 'Expenses', icon: <Receipt className="w-4 h-4" /> },
         { key: 'balances', label: 'Balances', icon: <BarChart3 className="w-4 h-4" /> },
-        { key: 'settlements', label: 'Pay Balance', icon: <Handshake className="w-4 h-4" />, badge: (settlements || []).length },
+        { key: 'settlements', label: 'Pay Balance', icon: <Handshake className="w-4 h-4" />, badge: effectiveSettlements.length },
         {
             key: 'payments',
             label: 'Payments',
@@ -578,13 +572,13 @@ export default function GroupPage() {
 
             {activeTab === 'balances' && (
                 <div>
-                    {(balances || []).length === 0 ? (
+                    {computedBalances.length === 0 ? (
                         <div className="bg-surface border border-border rounded-2xl p-12 text-center">
                             <p className="text-secondary">No balances to show. Add some expenses first.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {(balances || []).map((b) => (
+                            {computedBalances.map((b) => (
                                 <BalanceBubble key={b.user_id} balance={b} />
                             ))}
                         </div>

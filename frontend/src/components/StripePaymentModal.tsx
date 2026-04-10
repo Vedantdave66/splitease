@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { X, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, Loader2, ShieldCheck, CheckCircle2, Clock } from 'lucide-react';
 import { paymentsApi, stripeApi } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 
@@ -113,21 +113,28 @@ function CheckoutForm({
     if (state === 'verifying' || state === 'timeout') {
         return (
             <div className="py-12 text-center animate-in fade-in">
-                <Loader2 className="w-12 h-12 text-indigo animate-spin mx-auto mb-6" />
+                <div className="relative w-16 h-16 mx-auto mb-6">
+                    <Loader2 className="w-16 h-16 text-indigo animate-spin" />
+                    {state === 'timeout' && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-indigo opacity-50" />
+                        </div>
+                    )}
+                </div>
                 <h3 className="text-xl font-bold text-primary mb-2">
-                    {state === 'timeout' ? "Still Processing..." : "Verifying with Stripe..."}
+                    {state === 'timeout' ? "Still processing..." : "Verifying with Stripe..."}
                 </h3>
-                <p className="text-sm text-secondary max-w-xs mx-auto">
+                <p className="text-sm text-secondary max-w-xs mx-auto leading-relaxed">
                     {state === 'timeout' 
-                        ? "We're waiting for the payment confirmation. You can safely close this; we'll update your dashboard." 
+                        ? "Still processing — check activity later. We'll update your dashboard once Stripe confirms the transfer." 
                         : "Almost there! We're confirming the transfer with your bank."}
                 </p>
                 {state === 'timeout' && (
                     <button
                         onClick={onCancel}
-                        className="mt-8 px-8 py-3 bg-surface text-primary font-bold rounded-xl border border-border"
+                        className="mt-8 px-8 py-3 bg-surface hover:bg-border text-primary font-bold rounded-xl border border-border transition-all cursor-pointer"
                     >
-                        Close & Check Later
+                        Close & Check Activity
                     </button>
                 )}
             </div>

@@ -1,4 +1,5 @@
 import { GroupListItem } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -51,7 +52,7 @@ export default function GroupCard({ group }: GroupCardProps) {
                     <span className="text-[10px] text-secondary font-bold uppercase tracking-[0.15em] block mb-1.5">Total Expenses</span>
                     <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-black text-primary tracking-tight">
-                            ${group.total_expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ${formatCurrency(group.total_expenses)}
                         </span>
                     </div>
                 </div>

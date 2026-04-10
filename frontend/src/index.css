@@ -21,36 +21,65 @@
 }
 
 :root {
-  /* Light Mode (Default) */
-  --color-bg-base: #F1F5F9;
-  --color-surface-base: #FFFFFF;
+  /* Semantic Tokens (Light Mode - Default) */
+  --bg-primary: #F1F5F9;
+  --bg-secondary: #FFFFFF;
+  --text-primary: #020617;
+  --text-secondary: #475569;
+  --border-color: #CBD5E1;
+  --accent-color: #16A34A;
+  --accent-hover: #15803D;
+  --indigo-primary: #4F46E5;
+  --danger-color: #DC2626;
+  --warning-color: #F59E0B;
+  
+  /* Legacy Color mappings for Tailwind backward compatibility */
+  --color-bg-base: var(--bg-primary);
+  --color-surface-base: var(--bg-secondary);
   --color-surface-hover-base: #F8FAFC;
   --color-surface-light-base: #FFFFFF;
-  --color-border-base: #CBD5E1;
-  --color-primary-base: #020617;
-  --color-secondary-base: #475569;
-  --color-accent-base: #16A34A;
-  --color-accent-hover-base: #15803D;
-  --color-indigo-base: #4F46E5;
-  --color-danger-base: #DC2626;
-  --color-warning-base: #F59E0B;
+  --color-border-base: var(--border-color);
+  --color-primary-base: var(--text-primary);
+  --color-secondary-base: var(--text-secondary);
+  --color-accent-base: var(--accent-color);
+  --color-accent-hover-base: var(--accent-hover);
+  --color-indigo-base: var(--indigo-primary);
+  --color-danger-base: var(--danger-color);
+  --color-warning-base: var(--warning-color);
   --color-gold-base: #D4A853;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
 }
 
 :root[data-theme="dark"] {
-  /* Dark Mode */
-  --color-bg-base: #09090B;
-  --color-surface-base: #111318;
+  /* Semantic Tokens (Dark Mode) */
+  --bg-primary: #09090B;
+  --bg-secondary: #111318;
+  --text-primary: #F5F7FA;
+  --text-secondary: #A1A1AA;
+  --border-color: #1E2230;
+  --accent-color: #4ADE80;
+  --accent-hover: #22C55E;
+  --indigo-primary: #818CF8;
+  --danger-color: #EF4444;
+  --warning-color: #F59E0B;
+
+  /* Color mappings */
+  --color-bg-base: var(--bg-primary);
+  --color-surface-base: var(--bg-secondary);
   --color-surface-hover-base: #1A1D27;
   --color-surface-light-base: #151821;
-  --color-border-base: #1E2230;
-  --color-primary-base: #F5F7FA;
-  --color-secondary-base: #A1A1AA;
-  --color-accent-base: #4ADE80;
-  --color-accent-hover-base: #22C55E;
-  --color-indigo-base: #818CF8;
-  --color-danger-base: #EF4444;
-  --color-warning-base: #F59E0B;
+  --color-border-base: var(--border-color);
+  --color-primary-base: var(--text-primary);
+  --color-secondary-base: var(--text-secondary);
+  --color-accent-base: var(--accent-color);
+  --color-accent-hover-base: var(--accent-hover);
+  --color-indigo-base: var(--indigo-primary);
+  --color-danger-base: var(--danger-color);
+  --color-warning-base: var(--warning-color);
   --color-gold-base: #D4A853;
 }
 

@@ -95,7 +95,7 @@ export default function DashboardPage() {
                         <div className="mt-auto">
                             <p className="text-sm font-medium text-secondary mb-1">Total Spending</p>
                             <p className="text-[2rem] font-black text-primary tracking-tight leading-none">
-                                ${totalSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ${formatCurrency(totalSpending)}
                             </p>
                         </div>
                     </div>
@@ -132,7 +132,7 @@ export default function DashboardPage() {
                             <p className="text-sm font-medium text-secondary mb-1">Avg. Per Group</p>
                             <p className="text-[2rem] font-black text-primary tracking-tight leading-none">
                                 ${totalGroups > 0
-                                    ? (totalSpending / totalGroups).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    ? formatCurrency(totalSpending / totalGroups)
                                     : '0.00'}
                             </p>
                         </div>

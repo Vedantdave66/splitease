@@ -1,15 +1,16 @@
 import { UserBalance } from '../services/api';
+import { ComputedBalance } from '../utils/balances';
 import { formatCurrency } from '../utils/currency';
 import Avatar from './Avatar';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface BalanceBubbleProps {
-    balance: UserBalance;
+    balance: UserBalance | ComputedBalance;
 }
 
 export default function BalanceBubble({ balance }: BalanceBubbleProps) {
-    const isPositive = balance.net_balance > 0;
-    const isNegative = balance.net_balance < 0;
+    const isPositive = balance.net_balance > 0.01;
+    const isNegative = balance.net_balance < -0.01;
 
     return (
         <div className={`
@@ -21,7 +22,8 @@ export default function BalanceBubble({ balance }: BalanceBubbleProps) {
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-primary truncate">{balance.name}</p>
                     <p className="text-xs text-secondary">
-                        Paid ${formatCurrency(balance?.total_paid)} · Owes ${formatCurrency(balance?.total_owed)}
+                        Paid ${formatCurrency('spent' in balance ? balance.spent : (balance as UserBalance).total_paid)} · 
+                        Owed ${formatCurrency('owed' in balance ? balance.owed : (balance as UserBalance).total_owed)}
                     </p>
                 </div>
             </div>
