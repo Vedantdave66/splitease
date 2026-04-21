@@ -223,7 +223,7 @@ function CheckoutForm({
                     setState('error');
                 }}
                 options={{ 
-                    wallets: { applePay: 'auto', googlePay: 'auto' },
+                    wallets: { applePay: 'never', googlePay: 'never' },
                     layout: 'tabs'
                 }} 
             />
