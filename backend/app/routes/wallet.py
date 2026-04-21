@@ -38,7 +38,84 @@ router = APIRouter(prefix="/api/wallet", tags=["wallet"])
 
 
 
+class AddFundsRequest(BaseModel):
+    amount: condecimal(ge=Decimal("0.01"), decimal_places=2)
 
+class WithdrawRequest(BaseModel):
+    amount: condecimal(ge=Decimal("0.01"), decimal_places=2)
+
+@router.post("/add-funds")
+@idempotent
+async def add_funds(
+    request: Request,
+    data: AddFundsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Add funds to the user's wallet. 
+    Strict ledger validation applied.
+    """
+    user = await lock_user_for_update(current_user.id, db)
+    await pre_validate_balance(user, db)
+
+    # 1. Create transaction
+    txn = WalletTransaction(
+        user_id=user.id,
+        type="deposit",
+        amount=data.amount,
+        status="completed" # for simulation, immediately complete
+    )
+    db.add(txn)
+    
+    # 2. Update cached balance
+    user.wallet_balance += data.amount
+    
+    # 3. Post-mutation integrity check
+    await validate_balance_integrity(user.id, user.wallet_balance, db)
+    
+    await db.commit()
+    await verify_post_commit(user.id, user.wallet_balance, db)
+    
+    return {"status": "success", "new_balance": user.wallet_balance}
+
+@router.post("/withdraw")
+@idempotent
+async def withdraw_funds(
+    request: Request,
+    data: WithdrawRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Withdraw funds from the user's wallet.
+    Strict ledger validation applied.
+    """
+    user = await lock_user_for_update(current_user.id, db)
+    await pre_validate_balance(user, db)
+
+    if user.wallet_balance < data.amount:
+        raise HTTPException(status_code=400, detail="Insufficient funds")
+
+    # 1. Create transaction
+    txn = WalletTransaction(
+        user_id=user.id,
+        type="withdrawal",
+        amount=-data.amount,
+        status="completed" # for simulation, immediately complete
+    )
+    db.add(txn)
+    
+    # 2. Update cached balance
+    user.wallet_balance -= data.amount
+    
+    # 3. Post-mutation integrity check
+    await validate_balance_integrity(user.id, user.wallet_balance, db)
+    
+    await db.commit()
+    await verify_post_commit(user.id, user.wallet_balance, db)
+    
+    return {"status": "success", "new_balance": user.wallet_balance}
 
 @router.get("/balance", response_model=UserOut)
 async def get_balance(

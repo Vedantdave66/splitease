@@ -54,9 +54,11 @@ async def create_payment(
     payee_result = await db.execute(select(User).where(User.id == data.payee_id))
     payee = payee_result.scalars().first()
     
-    if not payee or not getattr(payee, 'stripe_account_id', None):
-        logger.error(f"[{correlation_id}] Payment failed: Payee {data.payee_id} has no connected Stripe account")
-        raise HTTPException(status_code=400, detail="Recipient must connect bank account to receive payments")
+    if not payee:
+        logger.error(f"[{correlation_id}] Payment failed: Payee {data.payee_id} not found")
+        raise HTTPException(status_code=404, detail="Payee not found")
+
+    is_pending_claim = not getattr(payee, 'stripe_account_id', None)
 
     # 3. Single Active Payment Enforcement (CRITICAL)
     if data.settlement_id:
@@ -69,12 +71,19 @@ async def create_payment(
         )
         existing_payment = existing_result.scalars().first()
 
-        if existing_payment:
-            logger.info(f"[{correlation_id}] Existing payment found: id={existing_payment.id} status={existing_payment.status}")
-            
-            # Fetch absolute status from Stripe source of truth
-            if existing_payment.stripe_payment_intent_id:
-                try:
+            if existing_payment:
+                if not existing_payment.stripe_payment_intent_id:
+                    if existing_payment.status in ["pending_claim", "pending_claim_ready"]:
+                        if is_pending_claim:
+                            # Still waiting for payee
+                            return {"status": "pending_claim", "payment_id": existing_payment.id, "client_secret": None}
+                        else:
+                            # Payee now has an account! Expire the old pending_claim and let it create a new real payment below.
+                            existing_payment.status = "expired"
+                            await db.flush()
+                else:
+                    # Fetch absolute status from Stripe source of truth
+                    try:
                     intent = stripe.PaymentIntent.retrieve(existing_payment.stripe_payment_intent_id)
                     status = intent.status
                     logger.info(f"[{correlation_id}] Stripe PI status: {status}")
@@ -126,11 +135,26 @@ async def create_payment(
         payee_id=data.payee_id,
         amount=data.amount,
         settlement_id=data.settlement_id,
-        status="pending"
+        status="pending_claim" if is_pending_claim else "pending"
     )
     db.add(new_payment)
     await db.flush()
-    logger.info(f"[{correlation_id}] NEW internal payment record created: id={new_payment.id}")
+    logger.info(f"[{correlation_id}] NEW internal payment record created: id={new_payment.id} status={new_payment.status}")
+
+    if is_pending_claim:
+        from app.models import Notification
+        notif = Notification(
+            user_id=payee.id,
+            type="payment_pending_claim",
+            title="Money is waiting for you!",
+            message=f"{current_user.name} wants to pay you ${data.amount / 100:.2f}. Set up your bank account to claim it.",
+            reference_id=new_payment.id,
+            group_id=None
+        )
+        db.add(notif)
+        await db.commit()
+        logger.info(f"[{correlation_id}] Pending claim created, payee notified.")
+        return {"status": "pending_claim", "payment_id": new_payment.id, "client_secret": None}
 
     try:
         # 5. Create Fresh Stripe PaymentIntent

@@ -63,6 +63,12 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass  # Column already exists
 
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE payments ADD COLUMN payout_arrival_date VARCHAR(50);"))
+    except Exception:
+        pass
+
     # Handle Payment Settlement CASCADE for Group deletion
     try:
         async with engine.begin() as conn:

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { X, Loader2, ShieldCheck, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
-import { paymentsApi } from '../services/api';
+import { X, Loader2, ShieldCheck, CheckCircle2, Clock, AlertTriangle, Lock } from 'lucide-react';
+import { paymentsApi, authApi } from '../services/api';
 import { formatCurrency } from '../utils/currency';
+import { useAuth } from '../context/AuthContext';
 
 // Stripe public key
 const stripePromise = loadStripe((import.meta.env.VITE_STRIPE_PUBLIC_KEY as string) || 'pk_test_TYooMQauvdEDq54NiTphI7jx');
@@ -150,6 +151,17 @@ function CheckoutForm({
                 </div>
                 <h3 className="text-2xl font-bold text-primary mb-2">Payment Confirmed</h3>
                 <p className="text-sm text-secondary">Stripe and TandemPay have finalized your transaction.</p>
+                <div className="mt-6 p-4 bg-accent/10 border border-accent/20 rounded-2xl flex items-center gap-3 text-left">
+                    <Clock className="w-8 h-8 text-accent shrink-0" />
+                    <div>
+                        <p className="text-xs font-bold text-accent uppercase tracking-wider mb-0.5">Estimated Arrival</p>
+                        <p className="text-sm font-medium text-primary">
+                            Funds will arrive by {
+                                new Date(Date.now() + 86400000 * (new Date().getDay() > 3 ? 4 : 2)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            }
+                        </p>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -211,7 +223,7 @@ function CheckoutForm({
                     setState('error');
                 }}
                 options={{ 
-                    wallets: { applePay: 'never', googlePay: 'never' },
+                    wallets: { applePay: 'auto', googlePay: 'auto' },
                     layout: 'tabs'
                 }} 
             />
@@ -262,12 +274,28 @@ export default function StripePaymentModal({
     const [paymentId, setPaymentId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isPendingClaim, setIsPendingClaim] = useState(false);
+    const { user, refetchUser } = useAuth();
+    const [showTrustScreen, setShowTrustScreen] = useState(user ? !user.has_completed_payment : false);
+    const [trustSaving, setTrustSaving] = useState(false);
     const initRef = useRef(false);
+
+    const acceptTrustScreen = async () => {
+        setTrustSaving(true);
+        try {
+            await authApi.updateMe({ has_completed_payment: true });
+            await refetchUser();
+            setShowTrustScreen(false);
+        } catch (err) {
+            console.error("Failed to update trust flag", err);
+            setShowTrustScreen(false); // dismiss anyway to let them pay
+        }
+    };
 
     // Fetch a FRESH client_secret every time the modal mounts
     useEffect(() => {
-        // Strict: only run once per mount
-        if (initRef.current) return;
+        // Strict: only run once per mount, and wait until trust screen is dismissed
+        if (initRef.current || showTrustScreen) return;
         initRef.current = true;
 
         const initPayment = async () => {
@@ -284,6 +312,12 @@ export default function StripePaymentModal({
                 if (res.status === 'already_completed') {
                     onSuccess();
                     onClose();
+                    return;
+                }
+
+                if (res.status === 'pending_claim') {
+                    setIsPendingClaim(true);
+                    setLoading(false);
                     return;
                 }
 
@@ -310,12 +344,51 @@ export default function StripePaymentModal({
             setError('Invalid payment parameters.');
             setLoading(false);
         }
-    }, []); // Empty deps — runs exactly once on mount
+    }, [showTrustScreen]); // Re-run when trust screen is dismissed
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-md">
-            <div className="bg-bg border border-border w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl">
-                <div className="flex items-center justify-between p-7 border-b border-border bg-surface/30">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-bg border border-border w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+                
+                {showTrustScreen ? (
+                    <div className="p-8 text-center relative z-10">
+                        <div className="w-16 h-16 bg-accent/10 border border-accent/20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <Lock className="w-8 h-8 text-accent" />
+                        </div>
+                        <h2 className="text-2xl font-black text-primary mb-3">Safe & Secure</h2>
+                        <p className="text-sm text-secondary mb-6 leading-relaxed">
+                            TandemPay uses <strong className="text-primary">Stripe</strong> to process payments. We never see, store, or transmit your card numbers or bank details. 
+                            Everything is 100% encrypted end-to-end.
+                        </p>
+                        
+                        <div className="bg-surface border border-border rounded-xl p-4 mb-8 flex items-center gap-4 text-left">
+                            <ShieldCheck className="w-6 h-6 text-indigo shrink-0" />
+                            <div>
+                                <p className="text-sm font-bold text-primary">Bank-Grade Encryption</p>
+                                <p className="text-xs text-secondary mt-0.5">Your money moves securely.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                disabled={trustSaving}
+                                className="flex-1 py-4 bg-surface hover:bg-border text-primary font-bold rounded-2xl transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={acceptTrustScreen}
+                                disabled={trustSaving}
+                                className="flex-[2] py-4 bg-accent hover:bg-accent/90 text-bg font-bold rounded-2xl shadow-xl shadow-accent/20 transition-all flex justify-center items-center gap-2 cursor-pointer"
+                            >
+                                {trustSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continue to Payment'}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex items-center justify-between p-7 border-b border-border bg-surface/30">
                     <div>
                         <h2 className="text-2xl font-black text-primary tracking-tight">Secure Payment</h2>
                         <div className="flex items-center gap-1.5 mt-1 bg-accent/10 px-2 py-0.5 rounded-full w-fit">
@@ -333,6 +406,17 @@ export default function StripePaymentModal({
                         <div className="py-16 text-center">
                             <Loader2 className="w-12 h-12 text-indigo animate-spin mx-auto mb-6" />
                             <p className="text-secondary font-bold animate-pulse">Establishing Secure Tunnel...</p>
+                        </div>
+                    ) : isPendingClaim ? (
+                        <div className="py-8 text-center animate-in fade-in zoom-in duration-500">
+                            <div className="w-20 h-20 bg-indigo/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <CheckCircle2 className="w-10 h-10 text-indigo" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-primary mb-2">Notification Sent</h3>
+                            <p className="text-sm text-secondary mb-8">
+                                This user hasn't connected their bank account yet. We've notified them to set it up so you can pay them. We'll let you know when they're ready!
+                            </p>
+                            <button onClick={() => { onSuccess(); onClose(); }} className="w-full py-4 bg-indigo hover:bg-indigo-hover text-white font-bold rounded-2xl cursor-pointer">Got it</button>
                         </div>
                     ) : error ? (
                         <div className="py-8 text-center">
@@ -374,6 +458,8 @@ export default function StripePaymentModal({
                         </div>
                     )}
                 </div>
+                </>
+                )}
             </div>
         </div>
     );

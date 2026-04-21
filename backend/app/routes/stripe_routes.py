@@ -81,6 +81,40 @@ async def get_onboarding_status(
         
     try:
         account = stripe.Account.retrieve(current_user.stripe_account_id)
+        
+        if account.details_submitted:
+            # Check for any pending claims for this user
+            result = await db.execute(
+                select(Payment).where(
+                    Payment.payee_id == current_user.id, 
+                    Payment.status == "pending_claim"
+                )
+            )
+            pending_claims = result.scalars().all()
+            
+            if pending_claims:
+                from app.models import Notification
+                import logging
+                logger = logging.getLogger("splitease.onboarding")
+                
+                for p in pending_claims:
+                    # Mark it so we don't double-notify
+                    p.status = "pending_claim_ready"
+                    
+                    # Notify the payer
+                    notif = Notification(
+                        user_id=p.payer_id,
+                        type="payment_claim_ready",
+                        title="They are ready to be paid!",
+                        message=f"{current_user.name} has set up their bank account. You can now send them the ${p.amount / 100:.2f}.",
+                        reference_id=p.id,
+                        group_id=None
+                    )
+                    db.add(notif)
+                    logger.info(f"Resolved pending claim {p.id}, notified payer {p.payer_id}")
+                
+                await db.commit()
+                
         return {"onboarded": account.details_submitted}
     except Exception as e:
         return {"onboarded": False}
@@ -145,6 +179,17 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                             logger.error(f"Transfer validation error: {str(transfer_err)}")
 
                         payment.status = "succeeded"
+                        
+                        # Calculate +2 business days for payout arrival
+                        from datetime import datetime, timedelta
+                        now = datetime.now()
+                        days_to_add = 2
+                        while days_to_add > 0:
+                            now += timedelta(days=1)
+                            if now.weekday() < 5:
+                                days_to_add -= 1
+                        payment.payout_arrival_date = now.strftime("%b %d")
+
                         if payment.settlement_id and payment.settlement_id != "none":
                             settlement_res = await db.execute(select(SettlementRecord).where(SettlementRecord.id == payment.settlement_id))
                             settlement = settlement_res.scalars().first()
@@ -211,6 +256,17 @@ async def reconcile_payment(payment_id: str, db: AsyncSession = Depends(get_db))
         
         if intent.status == "succeeded":
             payment.status = "succeeded"
+            
+            # Calculate +2 business days for payout arrival
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            days_to_add = 2
+            while days_to_add > 0:
+                now += timedelta(days=1)
+                if now.weekday() < 5:
+                    days_to_add -= 1
+            payment.payout_arrival_date = now.strftime("%b %d")
+
             if payment.settlement_id and payment.settlement_id != "none":
                 settlement_res = await db.execute(select(SettlementRecord).where(SettlementRecord.id == payment.settlement_id))
                 settlement = settlement_res.scalars().first()
