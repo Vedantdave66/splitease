@@ -71,19 +71,19 @@ async def create_payment(
         )
         existing_payment = existing_result.scalars().first()
 
-            if existing_payment:
-                if not existing_payment.stripe_payment_intent_id:
-                    if existing_payment.status in ["pending_claim", "pending_claim_ready"]:
-                        if is_pending_claim:
-                            # Still waiting for payee
-                            return {"status": "pending_claim", "payment_id": existing_payment.id, "client_secret": None}
-                        else:
-                            # Payee now has an account! Expire the old pending_claim and let it create a new real payment below.
-                            existing_payment.status = "expired"
-                            await db.flush()
-                else:
-                    # Fetch absolute status from Stripe source of truth
-                    try:
+        if existing_payment:
+            if not existing_payment.stripe_payment_intent_id:
+                if existing_payment.status in ["pending_claim", "pending_claim_ready"]:
+                    if is_pending_claim:
+                        # Still waiting for payee
+                        return {"status": "pending_claim", "payment_id": existing_payment.id, "client_secret": None}
+                    else:
+                        # Payee now has an account! Expire the old pending_claim and let it create a new real payment below.
+                        existing_payment.status = "expired"
+                        await db.flush()
+            else:
+                # Fetch absolute status from Stripe source of truth
+                try:
                     intent = stripe.PaymentIntent.retrieve(existing_payment.stripe_payment_intent_id)
                     status = intent.status
                     logger.info(f"[{correlation_id}] Stripe PI status: {status}")
