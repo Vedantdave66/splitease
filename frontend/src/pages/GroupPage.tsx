@@ -515,7 +515,6 @@ export default function GroupPage() {
                             <p className="text-sm text-accent mt-1">{inviteMsg}</p>
                         )}
                     </div>
-                    </div>
                 )}
             </div>
 
