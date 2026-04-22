@@ -1,6 +1,6 @@
 # TandemPay
 
-**Full-stack expense splitting app with Stripe Connect peer-to-peer payments, Plaid bank linking, a React 19 web app, and a React Native + Expo mobile app.**
+**TandemPay is a multi-user financial state management system that ensures consistent shared balances and supports real-time peer-to-peer payments using Stripe Connect.**
 
 🌐 **Live:** [tandempay.ca](https://tandempay.ca) &nbsp;|&nbsp; 📡 **API:** [api.tandempay.ca/docs](https://api.tandempay.ca/docs)
 
