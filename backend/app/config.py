@@ -35,8 +35,9 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        # HARDCODED override to bypass Vercel environment variables entirely.
-        return "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres?sslmode=require"
+        # HARDCODED direct connection URL (port 5432) to bypass Vercel env vars 
+        # AND bypass the Supabase Pooler (which causes random hangs on AWS Lambda).
+        return "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@db.gazgcmcvcajxqnxlwjmv.supabase.co:5432/postgres"
 
 
 @lru_cache()
