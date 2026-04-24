@@ -348,7 +348,7 @@ export const plaidApi = {
 export const stripeApi = {
     onboard: (returnPath: string = '/dashboard') =>
         request<{ url: string }>(`/stripe/onboard?return_path=${encodeURIComponent(returnPath)}`, { method: 'POST' }),
-    getStatus: () => request<{ onboarded: boolean }>('/stripe/status'),
+    getStatus: () => request<{ onboarded: boolean; account_id: string | null; email: string | null; payouts_enabled: boolean; dashboard_url: string | null }>('/stripe/status'),
     createPaymentIntent: (data: { amount: number; payee_id: string; provider_account_id: string }) =>
         request<{ client_secret: string; status: string }>('/stripe/create-payment-intent', {
             method: 'POST',
