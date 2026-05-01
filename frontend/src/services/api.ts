@@ -1,6 +1,6 @@
-// Use Vercel's relative route prefix for the backend in production, otherwise local or Render
-export const BASE_URL = import.meta.env.PROD 
-    ? "/_/backend/api" 
+// /api/* is rewritten to the FastAPI backend by vercel.json
+export const BASE_URL = import.meta.env.PROD
+    ? "/api"
     : "http://localhost:8000/api";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
