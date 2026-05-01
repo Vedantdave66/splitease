@@ -1,6 +1,6 @@
-// /api/* is rewritten to the FastAPI backend by vercel.json
+// Backend is deployed as a separate Vercel project at api.tandempay.ca
 export const BASE_URL = import.meta.env.PROD
-    ? "/api"
+    ? "https://api.tandempay.ca/api"
     : "http://localhost:8000/api";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
