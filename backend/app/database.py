@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
+from sqlalchemy import event
 from app.config import get_settings
 
 settings = get_settings()
@@ -9,8 +10,13 @@ engine = create_async_engine(
     settings.effective_database_url, 
     echo=False,
     poolclass=NullPool,
-    connect_args={"prepare_threshold": 0},
 )
+
+# Disable prepared statements on every connection — required for PgBouncer/Supabase Transaction Pooler
+@event.listens_for(engine.sync_engine, "connect")
+def _on_connect(dbapi_conn, connection_record):
+    dbapi_conn.prepare_threshold = None
+
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
