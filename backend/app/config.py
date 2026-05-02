@@ -4,7 +4,7 @@ import os
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@db.gazgcmcvcajxqnxlwjmv.supabase.co:5432/postgres"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres"
     SECRET_KEY: str = "super-secret-dev-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
@@ -35,11 +35,9 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        # HARDCODED override. We MUST use the Supabase IPv4 Pooler URL because Vercel/AWS Lambda
-        # fails to resolve the IPv6 direct connection (db.project-ref...).
-        # However, we use port 5432 (Session Pool) instead of 6543 (Transaction Pool) 
-        # so psycopg3's prepared statements work flawlessly without hanging.
-        return "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+        # Use Supabase IPv4 Pooler (Transaction Pool, port 6543) with asyncpg driver.
+        # Vercel serverless is stateless so NullPool + transaction pool is correct.
+        return "postgresql+asyncpg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres?ssl=require"
 
 
 @lru_cache()
