@@ -21,95 +21,105 @@ from sqlalchemy import text
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        
-    # Simple auto-migration for existing databases
-    # Isolated so that an error doesn't abort the entire Postgres transaction block
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN interac_email VARCHAR(255);"))
-    except Exception:
-        pass  # Ignore if column already exists
-        
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0;"))
-    except Exception:
-        pass  # Ignore if column already exists
-        
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE provider_accounts ADD COLUMN access_token VARCHAR(255);"))
-    except Exception:
-        pass
+    is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
 
     try:
+        # Create tables on startup
         async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN stripe_account_id VARCHAR(255);"))
-    except Exception:
-        pass
-        
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE wallet_transactions ADD COLUMN stripe_payment_id VARCHAR(255);"))
-    except Exception:
-        pass
+            await conn.run_sync(Base.metadata.create_all)
+            
+        # Simple auto-migration for existing databases
+        # Isolated so that an error doesn't abort the entire Postgres transaction block
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN interac_email VARCHAR(255);"))
+        except Exception:
+            pass  # Ignore if column already exists
+            
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN wallet_balance FLOAT DEFAULT 0.0;"))
+        except Exception:
+            pass  # Ignore if column already exists
+            
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE provider_accounts ADD COLUMN access_token VARCHAR(255);"))
+        except Exception:
+            pass
 
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN has_completed_payment BOOLEAN DEFAULT FALSE;"))
-    except Exception:
-        pass  # Column already exists
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN stripe_account_id VARCHAR(255);"))
+        except Exception:
+            pass
+            
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE wallet_transactions ADD COLUMN stripe_payment_id VARCHAR(255);"))
+        except Exception:
+            pass
 
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE payments ADD COLUMN payout_arrival_date VARCHAR(50);"))
-    except Exception:
-        pass
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN has_completed_payment BOOLEAN DEFAULT FALSE;"))
+        except Exception:
+            pass  # Column already exists
 
-    # Handle Payment Settlement CASCADE for Group deletion
-    try:
-        async with engine.begin() as conn:
-            # Re-create the constraint with CASCADE to allow group deletion when Stripe payments exist
-            await conn.execute(text("ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_settlement_id_fkey;"))
-            await conn.execute(text("ALTER TABLE payments ADD CONSTRAINT payments_settlement_id_fkey FOREIGN KEY (settlement_id) REFERENCES settlement_records(id) ON DELETE CASCADE;"))
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE payments ADD COLUMN payout_arrival_date VARCHAR(50);"))
+        except Exception:
+            pass
+
+        # Handle Payment Settlement CASCADE for Group deletion
+        try:
+            async with engine.begin() as conn:
+                # Re-create the constraint with CASCADE to allow group deletion when Stripe payments exist
+                await conn.execute(text("ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_settlement_id_fkey;"))
+                await conn.execute(text("ALTER TABLE payments ADD CONSTRAINT payments_settlement_id_fkey FOREIGN KEY (settlement_id) REFERENCES settlement_records(id) ON DELETE CASCADE;"))
+        except Exception as e:
+            logger.warning(f"Could not update payments cascade constraint: {e}")
+
+        # Add UniqueConstraint to Payment if it doesn't exist
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE payments ADD CONSTRAINT uq_payment_settlement_payer UNIQUE (settlement_id, payer_id);"))
+        except Exception:
+            pass
+
+        # APScheduler only works in long-running servers, not serverless
+        if not is_serverless:
+            from app.services.payment_reconciliation import run_payment_reconciliation
+            scheduler = AsyncIOScheduler()
+            scheduler.add_job(
+                process_due_reminders,
+                trigger=IntervalTrigger(minutes=60),
+                id="reminder_tick",
+                name="Process due expense reminders",
+                replace_existing=True,
+            )
+            scheduler.add_job(
+                run_payment_reconciliation,
+                trigger=IntervalTrigger(minutes=30),
+                id="reconciliation_tick",
+                name="Automated payment reconciliation",
+                replace_existing=True,
+            )
+            scheduler.start()
+            logger.info("Schedulers started (Reminders 60m, Reconciliation 30m).")
     except Exception as e:
-        logger.warning(f"Could not update payments cascade constraint: {e}")
-
-    # Add UniqueConstraint to Payment if it doesn't exist
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE payments ADD CONSTRAINT uq_payment_settlement_payer UNIQUE (settlement_id, payer_id);"))
-    except Exception:
-        pass
-
-    # Start the reconciliation scheduler
-    from app.services.payment_reconciliation import run_payment_reconciliation
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(
-        process_due_reminders,
-        trigger=IntervalTrigger(minutes=60),
-        id="reminder_tick",
-        name="Process due expense reminders",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        run_payment_reconciliation,
-        trigger=IntervalTrigger(minutes=30),
-        id="reconciliation_tick",
-        name="Automated payment reconciliation",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("Schedulers started (Reminders 60m, Reconciliation 30m).")
+        logger.error(f"Lifespan startup error (non-fatal): {e}")
 
     yield
 
-    # Shutdown scheduler
-    scheduler.shutdown(wait=False)
-    logger.info("Reminder scheduler stopped.")
+    # Shutdown scheduler (only if it was started)
+    if not is_serverless:
+        try:
+            scheduler.shutdown(wait=False)
+            logger.info("Reminder scheduler stopped.")
+        except Exception:
+            pass
 
 app = FastAPI(title="Tandem API", version="1.0.0", lifespan=lifespan)
 
