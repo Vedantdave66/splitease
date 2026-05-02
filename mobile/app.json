@@ -30,9 +30,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "c598b2bd-d7cd-4290-9db2-567f63c8b8eb"
       }
-    }
+    },
+    "owner": "dv66"
   }
 }
-

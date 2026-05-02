@@ -12,18 +12,35 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const fullUrl = `${BASE_URL}${endpoint}`;
+
+    // ── Debug logging ──────────────────────────────────────────────
+    console.log(`[API] ${options.method || 'GET'} ${fullUrl}`);
+    if (options.body) {
+        console.log(`[API] Payload:`, options.body);
+    }
+    console.log(`[API] Headers:`, JSON.stringify(headers));
+    // ──────────────────────────────────────────────────────────────
+
+    const res = await fetch(fullUrl, {
         ...options,
         headers,
     });
 
+    console.log(`[API] Response status: ${res.status} ${res.statusText}`);
+
     if (!res.ok) {
-        let errorMsg = 'Request failed';
+        // Read raw text first so we see the actual response body even if it's HTML
+        const rawText = await res.text();
+        console.log(`[API] Error body:`, rawText);
+
+        let errorMsg = `HTTP ${res.status}`;
         try {
-            const error = await res.json();
-            errorMsg = error.detail || errorMsg;
-        } catch (e) {
-            // failed to parse
+            const json = JSON.parse(rawText);
+            errorMsg = json.detail || json.message || errorMsg;
+        } catch {
+            // Not JSON — surface the raw text (truncated) so it's visible
+            errorMsg = rawText.slice(0, 200) || errorMsg;
         }
         throw new Error(errorMsg);
     }
