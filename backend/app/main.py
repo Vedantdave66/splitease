@@ -167,22 +167,3 @@ async def root():
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-
-@app.get("/api/debug/db")
-async def debug_db():
-    """Test database connectivity — returns error details if connection fails."""
-    import traceback
-    try:
-        async with engine.begin() as conn:
-            from sqlalchemy import text
-            result = await conn.execute(text("SELECT 1"))
-            row = result.scalar()
-            return {"status": "ok", "db_connected": True, "result": row}
-    except Exception as e:
-        return {
-            "status": "error",
-            "db_connected": False,
-            "error_type": type(e).__name__,
-            "error": str(e),
-            "traceback": traceback.format_exc()[-500:]
-        }
