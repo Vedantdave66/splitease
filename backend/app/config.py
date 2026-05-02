@@ -4,7 +4,7 @@ import os
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+asyncpg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres"
+    DATABASE_URL: str = "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres"
     SECRET_KEY: str = "super-secret-dev-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
@@ -35,9 +35,10 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        # Use Supabase IPv4 Pooler (Transaction Pool, port 6543) with asyncpg driver.
+        # Use Supabase IPv4 Pooler (Transaction Pool, port 6543) with psycopg v3 pure Python driver.
         # Vercel serverless is stateless so NullPool + transaction pool is correct.
-        return "postgresql+asyncpg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres?ssl=require"
+        # prepare_threshold=0 disables prepared statements which don't work with PgBouncer.
+        return "postgresql+psycopg://postgres.gazgcmcvcajxqnxlwjmv:MessiwonWC2022$@aws-1-ca-central-1.pooler.supabase.com:6543/postgres?sslmode=require&prepare_threshold=0"
 
 
 @lru_cache()
