@@ -8,7 +8,8 @@ settings = get_settings()
 engine = create_async_engine(
     settings.effective_database_url, 
     echo=False,
-    poolclass=NullPool
+    poolclass=NullPool,
+    connect_args={"prepare_threshold": 0},
 )
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
